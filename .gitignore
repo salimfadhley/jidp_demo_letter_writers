@@ -1,38 +1,6 @@
-# The directory Mix will write compiled artifacts to.
-/_build/
-
-# If you run "mix test --cover", coverage assets end up here.
-/cover/
-
-# The directory Mix downloads your dependencies sources to.
-/deps/
-
-# Where third-party dependencies like ExDoc output generated docs.
-/doc/
-
-# Temporary files, for example, from tests.
-/tmp/
-
-# If the VM crashes, it generates a dump, let's ignore it too.
-erl_crash.dump
-
-# Also ignore archive artifacts (built via "mix archive.build").
-*.ez
-
-# Ignore package tarball (built via "mix hex.build").
-jido_demo1-*.tar
-
-
-# Secrets and IDE state.
-.env
+# Repo-level state that is not part of any demo.
 .idea/
-
-# Generated fiction.
-letters/
-
-# agent-inbox: identity and possibly a device token. Never commit.
-agent-inbox.toml
-
-# Agent mailbox runtime state and local Claude Code hooks.
-.agent-mailbox-wake.lock
 .claude/
+agent-inbox.toml
+.agent-mailbox-wake.lock
+.agent-mailbox-seen.json
