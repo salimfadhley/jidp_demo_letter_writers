@@ -46,7 +46,12 @@ defmodule Play1.LLM.Stub do
             "who" => ["lavinia_ashworth", "helena_marchmont", "arthur_pembroke", "julian_strake"],
             "where" => "the drawing-room",
             "arrivals" => [],
-            "disruption" => true
+            "disruption" => true,
+            "reactions" => %{
+              "helena_marchmont" => "awe",
+              "arthur_pembroke" => "awe",
+              "julian_strake" => "anger"
+            }
           }
 
         0 ->
