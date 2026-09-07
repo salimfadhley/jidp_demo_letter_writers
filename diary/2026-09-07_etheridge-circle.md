@@ -28,6 +28,10 @@ One `JidoDemo1.Character` agent per character; its schema is the entire private 
 
 The user clarified that a character receiving a letter must be free to ignore it, reply, write to a third party about it, or write about something unrelated, always with memory of what they have received. The appraisal prompt now also returns a decision, and the director follows it instead of choosing recipients. First real run: Helena and Pembroke replied to each other ten times and nobody else appeared, which is faithful but dull. Added idle invitations (a character with no post for four letters is asked to write, recipient of their own choosing) and a per-character decision queue where a newer decision replaces an older one. Second run: Clara and Strake entered unprompted at letters 5 and 6, and every other letter was a recorded decision. Nobody chose to ignore a letter or to write to a third party this time; the options are there and the stub tests cover them.
 
+## Later still: time, place, and a fifth character
+
+The user asked that the characters live in real places at the same real time, with different things happening around each, and that the instigating incident be an invitation from a fifth character outside the circle. Added `JidoDemo1.Almanac`: hand-curated standing descriptions of Cheltenham, London and Bath in 1891, dated local items per town, and dated national news, released into a character's compose prompt only as the story calendar reaches them and only for their own town. Mrs. Lavinia Ashworth, a Cheltenham collector of mediums, now holds the sitting and presses Helena to come; she has no agent and nobody can write to her, but everyone knows her. The last pre-almanac story was copied to `stories/` and committed as a baseline before the reset. Mailbox: joined this project as `uriel_puspita` from the CLI after the MCP join had failed; a session restart is needed for the wake hook.
+
 ## Next Steps
 - Let the model choose its recipient in free rounds, with the heuristic as fallback, to compare emergent behaviour.
 - Consider a model-written epilogue or a fifth "event" injected mid-run to test how the agents absorb new information.
