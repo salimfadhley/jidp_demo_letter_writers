@@ -12,7 +12,7 @@ defmodule Play1.Actions.JudgeScene do
       plan: [type: :any, required: true],
       transcript: [type: {:list, :string}, required: true],
       beats: [type: :non_neg_integer, required: true],
-      min_beats: [type: :pos_integer, default: 4],
+      min_beats: [type: :pos_integer, default: 6],
       forced: [
         type: :boolean,
         default: false,
@@ -41,6 +41,7 @@ defmodule Play1.Actions.JudgeScene do
            kind: :judge,
            number: plan.number,
            beats: params.beats,
+           present: params.present,
            forced: params.forced
          ) do
       {:ok, json} ->
@@ -67,16 +68,29 @@ defmodule Play1.Actions.JudgeScene do
 
   @spec parse(map(), map()) :: verdict()
   def parse(json, params) do
+    thing_shown = json["thing_shown"] == true
+    revealed = Map.get(params, :revealed, [])
+
+    # A scene may not end before at least one character's thing has been shown.
     decision =
       cond do
         params.forced -> :end
         params.beats < params.min_beats -> :continue
+        revealed == [] and not thing_shown -> :continue
         to_string(json["decision"] || "") |> String.downcase() == "end" -> :end
         true -> :continue
       end
 
+    spotlight =
+      case Play1.Cast.parse_id(json["spotlight"]) do
+        nil -> params.spotlight
+        id -> if id in params.present, do: id, else: params.spotlight
+      end
+
     %{
       decision: decision,
+      spotlight: spotlight,
+      thing_shown: thing_shown,
       reason: text(json["reason"]),
       closing: text(json["closing"]),
       summary: text(json["summary"])

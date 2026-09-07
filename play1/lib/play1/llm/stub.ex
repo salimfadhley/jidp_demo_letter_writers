@@ -65,17 +65,24 @@ defmodule Play1.LLM.Stub do
       "premise" => "Stub premise for scene #{number}.",
       "dramatic_goal" => "Stub goal.",
       "opening_line_by" => hd(base["who"]),
+      "spotlight" => hd(base["who"]),
       "max_beats" => if(number == total, do: 6, else: 8)
     })
   end
 
-  # End every scene after six beats, or when forced.
+  # End every scene after six beats, or when forced; move the spotlight every three beats.
   defp judge(opts) do
     beats = Keyword.fetch!(opts, :beats)
     ending = Keyword.fetch!(opts, :forced) or beats >= 6
+    present = Keyword.get(opts, :present, [])
+
+    spotlight =
+      if present == [], do: nil, else: Enum.at(present, rem(div(beats, 3), length(present)))
 
     %{
       "decision" => if(ending, do: "end", else: "continue"),
+      "spotlight" => spotlight && Atom.to_string(spotlight),
+      "thing_shown" => beats >= 3,
       "reason" => "Stub reason.",
       "closing" =>
         if(ending,

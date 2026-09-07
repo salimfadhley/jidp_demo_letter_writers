@@ -18,6 +18,8 @@ defmodule Play1.Plan do
     opening_line_by: nil,
     arrivals: [],
     disruption: false,
+    reactions: %{},
+    spotlight: nil,
     max_beats: 10
   ]
 
@@ -34,6 +36,8 @@ defmodule Play1.Plan do
           opening_line_by: Cast.id() | nil,
           arrivals: [arrival()],
           disruption: boolean(),
+          reactions: %{Cast.id() => atom()},
+          spotlight: Cast.id() | nil,
           max_beats: pos_integer()
         }
 
@@ -86,8 +90,54 @@ defmodule Play1.Plan do
         Cast.parse_id(json["opening_line_by"]) |> then(&if(&1 in who, do: &1, else: nil)),
       arrivals: arrivals,
       disruption: disruption,
+      reactions: reactions(json["reactions"]),
+      spotlight: Cast.parse_id(json["spotlight"]) |> then(&if(&1 in who, do: &1, else: nil)),
       max_beats: json["max_beats"] |> to_int(10) |> max(4) |> min(16)
     }
+  end
+
+  defp reactions(%{} = json) do
+    json
+    |> Enum.map(fn {id, mode} -> {Cast.parse_id(id), Cast.parse_reaction(mode)} end)
+    |> Enum.reject(fn {id, mode} -> is_nil(id) or is_nil(mode) end)
+    |> Map.new()
+  end
+
+  defp reactions(_), do: %{}
+
+  @doc """
+  Assign every member of the company present a distinct reaction to Ambrose,
+  keeping the director's choices where they are distinct and filling the rest
+  from the modes still unused, in cast order.
+  """
+  @spec assign_reactions(t(), [Cast.id()]) :: %{Cast.id() => atom()}
+  def assign_reactions(%__MODULE__{reactions: chosen}, present) do
+    modes = Keyword.keys(Cast.reactions())
+
+    # First honour the director's choices where they are distinct, in cast order...
+    {honoured, used} =
+      Enum.reduce(present, {%{}, []}, fn id, {acc, used} ->
+        case Map.get(chosen, id) do
+          mode when is_atom(mode) and not is_nil(mode) ->
+            if mode in used, do: {acc, used}, else: {Map.put(acc, id, mode), used ++ [mode]}
+
+          _ ->
+            {acc, used}
+        end
+      end)
+
+    # ...then give everyone else the next mode still unused.
+    {assigned, _} =
+      Enum.reduce(present, {honoured, used}, fn id, {acc, used} ->
+        if Map.has_key?(acc, id) do
+          {acc, used}
+        else
+          mode = Enum.find(modes, List.last(modes), &(&1 not in used))
+          {Map.put(acc, id, mode), used ++ [mode]}
+        end
+      end)
+
+    assigned
   end
 
   @doc "Everyone the plan brings on stage, in order of appearance."

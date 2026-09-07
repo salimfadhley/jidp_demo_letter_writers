@@ -16,6 +16,7 @@ defmodule Play1.Actions.TakeBeat do
       group: [type: {:list, :atom}, required: true],
       elsewhere: [type: {:list, :atom}, default: []],
       premise: [type: :string, default: ""],
+      spotlight: [type: {:or, [:atom, nil]}, default: nil],
       cue: [type: :string, default: ""]
     ]
 

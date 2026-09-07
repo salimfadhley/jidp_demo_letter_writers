@@ -15,6 +15,7 @@ defmodule Play1.Cast do
           | :julian_strake
           | :lavinia_ashworth
           | :ambrose_ashworth
+          | :barnabas_cruttwell
 
   @ids [
     :lavinia_ashworth,
@@ -22,11 +23,25 @@ defmodule Play1.Cast do
     :arthur_pembroke,
     :clara_vane,
     :julian_strake,
-    :ambrose_ashworth
+    :ambrose_ashworth,
+    :barnabas_cruttwell
   ]
   @guests [:helena_marchmont, :arthur_pembroke, :clara_vane, :julian_strake]
   @host :lavinia_ashworth
   @visitor :ambrose_ashworth
+  @keeper :barnabas_cruttwell
+
+  @reactions [
+    awe:
+      "Awe: what you heard was sheer poetry, a beauty you had not thought possible in this house.",
+    disgust:
+      "Disgust: a mind cracked, exhibited for a drawing-room, and you want it out of your sight.",
+    questioning:
+      "Questioning: great wisdom has been let slip, and you must know more; you press for it.",
+    anger: "Anger: something evil or heretical was spoken, and it must be answered, not pitied.",
+    weltschmerz:
+      "Weltschmerz: a sad truth has been revealed, and everything, this evening included, is pointless."
+  ]
 
   @rooms [
     "the drawing-room",
@@ -39,6 +54,7 @@ defmodule Play1.Cast do
   ]
 
   @names %{
+    barnabas_cruttwell: "Mr. Barnabas Cruttwell",
     ambrose_ashworth: "The Reverend Ambrose Ashworth",
     lavinia_ashworth: "Mrs. Lavinia Ashworth",
     helena_marchmont: "Mrs. Helena Marchmont",
@@ -48,6 +64,7 @@ defmodule Play1.Cast do
   }
 
   @short %{
+    barnabas_cruttwell: "Mr. Cruttwell",
     ambrose_ashworth: "Mr. Ambrose",
     lavinia_ashworth: "Mrs. Ashworth",
     helena_marchmont: "Mrs. Marchmont",
@@ -57,6 +74,7 @@ defmodule Play1.Cast do
   }
 
   @stage %{
+    barnabas_cruttwell: "CRUTTWELL",
     ambrose_ashworth: "AMBROSE",
     lavinia_ashworth: "MRS. ASHWORTH",
     helena_marchmont: "MRS. MARCHMONT",
@@ -78,9 +96,33 @@ defmodule Play1.Cast do
   @spec visitor() :: id()
   def visitor, do: @visitor
 
+  @doc "The one who holds the rope: the visitor's keeper, who comes and goes with him."
+  @spec keeper() :: id()
+  def keeper, do: @keeper
+
+  @doc "Both who appear only for the disruption."
+  @spec visitors() :: [id()]
+  def visitors, do: [@keeper, @visitor]
+
   @doc "The five who are at the party all evening: host and guests."
   @spec company() :: [id()]
   def company, do: [@host | @guests]
+
+  @doc "The distinct ways the company may be affected by Ambrose, each with its direction to the actor."
+  @spec reactions() :: keyword(String.t())
+  def reactions, do: @reactions
+
+  @doc "Turn a model-written reaction into one of the five, or nil."
+  @spec parse_reaction(term()) :: atom() | nil
+  def parse_reaction(value) when is_binary(value) do
+    wanted = value |> String.trim() |> String.downcase()
+    Enum.find(Keyword.keys(@reactions), &(Atom.to_string(&1) == wanted))
+  end
+
+  def parse_reaction(value) when is_atom(value) and not is_nil(value),
+    do: parse_reaction(Atom.to_string(value))
+
+  def parse_reaction(_), do: nil
 
   @doc "Rooms of Mrs. Ashworth's house in which a scene may be set."
   @spec rooms() :: [String.t()]
@@ -143,15 +185,18 @@ defmodule Play1.Cast do
   @spec setting() :: String.t()
   def setting do
     """
-    The drawing-room of Mrs. Lavinia Ashworth's house in Lansdown, Cheltenham. An evening in
-    the last week of October, 1891, a fortnight after the sitting at which Miss Vane, in
-    trance, spoke of a blue ribbon. Gas and candles; a good fire; a sideboard with champagne
-    cup, claret cup, sherry, ices and sandwiches; an ottoman; a tall window on to the dark
-    garden; the door to the hall, where the guests are received. Mrs. Ashworth has asked the
-    same people again, "so that we may all be comfortable together." They have all known one
-    another for years, and are fond of one another, which is what makes the evening dangerous.
-    Upstairs, on the second floor, lives her late husband's brother, the Reverend Ambrose
-    Ashworth, formerly a chaplain in Bengal, who does not come down.
+    Rooms of Mrs. Lavinia Ashworth's house in Lansdown, Cheltenham. An evening in the last
+    week of October, 1891, a fortnight after the sitting at which Miss Vane, in trance, spoke
+    of a blue ribbon. Each scene is played in one room, furnished lightly: a sideboard with
+    champagne cup, claret cup, sherry, ices and sandwiches; a few chairs nobody uses for long;
+    doors right and left. The fireplace and the window are downstage, in the fourth wall, so
+    that a character who warms her hands or looks into the garden looks out at the audience.
+    Mrs. Ashworth has asked the same people again, "so that we may all be comfortable
+    together." They have all known one another for years, and are fond of one another, which
+    is what makes the evening dangerous. Upstairs lives her late husband's brother, the
+    Reverend Ambrose Ashworth, formerly a chaplain in Bengal, who does not come down, and with
+    him the man she pays to manage him, Mr. Barnabas Cruttwell, lately of the asylum at
+    Gloucester.
     """
   end
 
@@ -254,7 +299,59 @@ defmodule Play1.Cast do
         julian_strake: %{affection: 0, trust: 0, suspicion: 0, resentment: 0}
       },
       dispositions: %{
-        lavinia_ashworth: "She holds the end of the rope."
+        lavinia_ashworth: "The house.",
+        barnabas_cruttwell: "He holds the sleeve. He has the strap."
+      }
+    }
+  end
+
+  defp character(:barnabas_cruttwell) do
+    %{
+      character_id: :barnabas_cruttwell,
+      public_name: name(:barnabas_cruttwell),
+      role: "keeper",
+      persona:
+        "Ambrose's keeper, fifty, formerly an attendant at the county asylum at Gloucester, now " <>
+          "paid by Mrs. Ashworth to manage her brother-in-law. Large, florid, loud, in a good coat " <>
+          "bought with her money; he carries a short leather strap and a whistle and holds the end " <>
+          "of Ambrose's sleeve as one holds a rope. He addresses any company at length about his " <>
+          "burden, his sensibility and his terms, expects gratitude, and is capable of sudden " <>
+          "tenderness toward Ambrose and sudden cruelty in the same breath. He exhibits him. He " <>
+          "gives the command to think, and he gives the command to stop.",
+      private_motivation:
+        "To be seen as a gentleman of feeling who has sacrificed himself to a duty, and to be " <>
+          "paid more for it.",
+      secret: "He has been selling Ambrose's books, and he strikes him when they are alone.",
+      anxiety:
+        "That Mrs. Ashworth will find a cheaper man, or that Ambrose will die and end the wages.",
+      game: %{
+        name: "the burden",
+        premise:
+          "Every remark, whoever it is addressed to, returns within a sentence to what Ambrose " <>
+            "costs him: his nights, his nerves, his prospects, his good coat, his very soul; and " <>
+            "he expects the company's thanks for it.",
+        ladder: [
+          "the hours he keeps and the sleep he has lost",
+          "the career he gave up, which grows grander each time",
+          "the injuries, shown or nearly shown",
+          "his own sanity, which he fears is going the same way",
+          "the proposal that the company subscribe to his relief, tonight"
+        ],
+        rest: "A big civil man in a good coat, managing an old clergyman with practised ease."
+      },
+      belief_state: %{spiritualism: 4, theosophy: 1, skepticism: 5},
+      relationships: %{
+        ambrose_ashworth: %{affection: 2, trust: 0, suspicion: 0, resentment: 6},
+        lavinia_ashworth: %{affection: 2, trust: 1, suspicion: 2, resentment: 3},
+        helena_marchmont: %{affection: 1, trust: 0, suspicion: 0, resentment: 0},
+        arthur_pembroke: %{affection: 0, trust: 0, suspicion: 3, resentment: 1},
+        clara_vane: %{affection: 1, trust: 0, suspicion: 1, resentment: 0},
+        julian_strake: %{affection: 1, trust: 0, suspicion: 1, resentment: 0}
+      },
+      dispositions: %{
+        ambrose_ashworth: "His charge, his living, his cross; he holds the sleeve.",
+        lavinia_ashworth: "The purse; to be flattered and alarmed in equal parts.",
+        arthur_pembroke: "A doctor, who might report him; to be watched."
       }
     }
   end

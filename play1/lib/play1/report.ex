@@ -9,65 +9,50 @@ defmodule Play1.Report do
   alias Play1.{Beat, Cast}
 
   @rule String.duplicate("=", 72)
-  @action_width 62
-  @name_indent 22
-  @paren_indent 16
-  @dialogue_indent 10
-  @dialogue_width 38
+  @action_width 72
+  @speech_width 72
+  @hanging 4
+  @direction_indent 8
 
   @spec header() :: String.t()
   def header do
     """
     AN EVENING AT MRS. ASHWORTH'S
 
-    The Etheridge Circle, a fortnight on.
+    A play in five scenes. The Etheridge Circle, a fortnight on.
+
+    PERSONS OF THE PLAY
+    #{Enum.map_join(Cast.ids(), "\n", &"    #{Cast.stage_name(&1)}, #{Cast.name(&1)}")}
 
     #{action(String.trim(Cast.setting()))}
-
-    FADE IN:
     """
   end
 
-  @doc "One entry in screenplay form."
+  @doc "One entry in stage-play form."
   @spec entry_text(term()) :: String.t()
   def entry_text({:scene, plan}) do
     """
-    SCENE #{plan.number}
+    SCENE #{ordinal(plan.number)}
 
-    INT. #{Cast.heading(plan.where)}, MRS. ASHWORTH'S HOUSE - NIGHT, #{plan.time}
+    #{action("#{String.capitalize(String.replace(plan.where, "the ", "The "))}. #{String.capitalize(String.downcase(plan.time))}. Lights up on #{Enum.map_join(plan.who, ", ", &Cast.stage_name/1)}.")}
 
     #{action("[Director's note: #{plan.note}]")}
-
-    #{action("#{Enum.map_join(plan.who, ", ", &Cast.stage_name/1)}, #{String.replace(plan.where, "the ", "in the ")}.")}
     """
     |> String.trim_trailing()
   end
 
+  def entry_text({:spotlight, who}), do: direction("[Spotlight: #{Cast.stage_name(who)}]")
+
   def entry_text({:closing, _number, text}),
-    do: action(text) <> "\n\n" <> String.duplicate(" ", 50) <> "CUT TO:"
+    do: direction(text) <> "\n\n" <> direction("Lights down.")
 
   def entry_text({:beat, %Beat{kind: :silent} = beat}),
-    do: action("#{Cast.stage_name(beat.speaker)} #{beat.direction || "says nothing"}.")
+    do: direction("#{Cast.stage_name(beat.speaker)} #{beat.direction || "says nothing"}.")
 
-  def entry_text({:beat, %Beat{} = beat}) do
-    paren =
-      case {beat.kind, beat.direction} do
-        {:aside, nil} -> "(aside)"
-        {:aside, d} -> "(aside; #{trim_dot(d)})"
-        {_, nil} -> nil
-        {_, d} -> "(#{trim_dot(d)})"
-      end
+  def entry_text({:beat, %Beat{} = beat}), do: speech(Beat.to_script(beat))
 
-    [
-      String.duplicate(" ", @name_indent) <> Cast.stage_name(beat.speaker),
-      paren && wrap(paren, @dialogue_width - 4, @paren_indent),
-      wrap(beat.line || "", @dialogue_width, @dialogue_indent)
-    ]
-    |> Enum.reject(&is_nil/1)
-    |> Enum.join("\n")
-  end
-
-  def entry_text({:note, text}), do: action(text)
+  def entry_text({:note, "CURTAIN." = text}), do: "\n" <> String.duplicate(" ", 30) <> text
+  def entry_text({:note, text}), do: direction(text)
 
   @spec render([term()], map(), map(), map()) :: String.t()
   def render(entries, initial, final, director) do
@@ -88,7 +73,7 @@ defmodule Play1.Report do
     plans =
       Enum.map_join(director.plans, "\n", fn plan ->
         """
-        Scene #{plan.number}, #{plan.where}, #{plan.time}: #{Enum.map_join(plan.who, ", ", &Cast.short_name/1)}#{arrivals(plan)}#{if plan.disruption, do: "; Ambrose brought down", else: ""}
+        Scene #{plan.number}, #{plan.where}, #{plan.time}: #{Enum.map_join(plan.who, ", ", &Cast.short_name/1)}#{arrivals(plan)}#{if plan.disruption, do: "; Ambrose brought down" <> reactions(plan), else: ""}
           note: #{plan.note}
           premise: #{plan.premise}
           goal: #{plan.dramatic_goal || "(none)"}
@@ -170,6 +155,30 @@ defmodule Play1.Report do
 
   # --- formatting ---
 
+  # A speech: name and line as one paragraph, wrapped with a hanging indent.
+  defp speech(text), do: wrap(text, @speech_width, 0, @hanging)
+
+  # A stage direction on its own, in parentheses, set in from the margin.
+  defp direction(text) do
+    text = String.trim(text)
+
+    text =
+      if String.starts_with?(text, "["),
+        do: text,
+        else: "(" <> String.trim_trailing(text, ".") <> ".)"
+
+    wrap(text, @speech_width - @direction_indent, @direction_indent, 0)
+  end
+
+  defp ordinal(n),
+    do: Enum.at(~w(ONE TWO THREE FOUR FIVE SIX SEVEN EIGHT NINE TEN), n - 1, Integer.to_string(n))
+
+  defp reactions(%{reactions: r}) when map_size(r) == 0, do: ""
+
+  defp reactions(%{reactions: r}),
+    do:
+      " (" <> Enum.map_join(r, ", ", fn {id, mode} -> "#{Cast.short_name(id)} #{mode}" end) <> ")"
+
   defp arrivals(%{arrivals: []}), do: ""
 
   defp arrivals(%{arrivals: list}),
@@ -183,8 +192,9 @@ defmodule Play1.Report do
     |> Enum.map_join("\n\n", &wrap(String.replace(&1, ~r/\s*\n\s*/, " "), @action_width, 0))
   end
 
-  defp wrap(text, width, indent) do
+  defp wrap(text, width, indent, hanging \\ 0) do
     pad = String.duplicate(" ", indent)
+    hang = String.duplicate(" ", hanging)
 
     text
     |> String.split(~r/\s+/, trim: true)
@@ -201,10 +211,9 @@ defmodule Play1.Report do
       end
     end)
     |> Enum.reverse()
-    |> Enum.map_join("\n", &(pad <> &1))
+    |> Enum.with_index()
+    |> Enum.map_join("\n", fn {line, i} -> pad <> if(i == 0, do: "", else: hang) <> line end)
   end
-
-  defp trim_dot(text), do: text |> String.trim() |> String.trim_trailing(".")
 
   defp movement(before, _after) when map_size(before) == 0, do: "(none)"
 

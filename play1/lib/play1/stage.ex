@@ -17,10 +17,11 @@ defmodule Play1.Stage do
   alias Jido.Signal
   alias Play1.{Beat, Cast, Character, Director, Plan, Report, Room}
 
-  @min_beats 4
+  @min_beats 6
 
   @type entry ::
           {:scene, Plan.t()}
+          | {:spotlight, Cast.id()}
           | {:beat, Beat.t()}
           | {:note, String.t()}
           | {:closing, pos_integer(), String.t()}
@@ -61,7 +62,7 @@ defmodule Play1.Stage do
 
     {status, stage} =
       case Enum.reduce_while(1..scenes, {:ok, stage}, &scene_step/2) do
-        {:ok, stage} -> {:ok, note(stage, "FADE OUT.")}
+        {:ok, stage} -> {:ok, note(stage, "CURTAIN.")}
         {:error, reason, stage} -> {{:error, reason}, stage}
       end
 
@@ -91,7 +92,7 @@ defmodule Play1.Stage do
   defp scene_step(number, {:ok, stage}) do
     available = Room.present(stage.room)
 
-    if length(available -- [Cast.visitor()]) < 2 do
+    if length(available -- Cast.visitors()) < 2 do
       {:halt, {:ok, stage}}
     else
       case scene(stage, number) do
@@ -122,13 +123,23 @@ defmodule Play1.Stage do
         |> Map.update!(:entries, &[{:scene, plan} | &1])
         |> maybe_print({:scene, plan})
 
+      spotlight = plan.spotlight || plan.opening_line_by || hd(plan.who)
+
       scene_state = %{
         plan: plan,
         beats: 0,
         transcript: [],
         arrivals: plan.arrivals,
-        first: plan.opening_line_by
+        first: plan.opening_line_by,
+        spotlight: spotlight,
+        lit: [spotlight],
+        revealed: []
       }
+
+      stage =
+        stage
+        |> Map.update!(:entries, &[{:spotlight, spotlight} | &1])
+        |> maybe_print({:spotlight, spotlight})
 
       with {:ok, stage, scene_state} <- maybe_disrupt(stage, scene_state),
            {:ok, stage, _scene_state} <- beats(stage, scene_state) do
@@ -138,7 +149,7 @@ defmodule Play1.Stage do
   end
 
   defp beats(stage, sc) do
-    on = Room.members(stage.room, sc.plan.where) -- [Cast.visitor()]
+    on = Room.members(stage.room, sc.plan.where) -- Cast.visitors()
 
     cond do
       length(on) < 2 or sc.beats >= sc.plan.max_beats ->
@@ -146,10 +157,10 @@ defmodule Play1.Stage do
 
       true ->
         {stage, sc} = maybe_arrive(stage, sc)
-        speaker = sc.first || choose_speaker(stage, sc.plan.where)
+        speaker = sc.first || choose_speaker(stage, sc.plan.where, sc.spotlight)
         phase = if sc.plan.number == stage.scenes, do: :last, else: :scene
 
-        case take(stage, speaker, phase, sc.plan.where, sc.plan.premise, cue(sc)) do
+        case take(stage, speaker, phase, sc.plan.where, sc.plan.premise, cue(sc), sc.spotlight) do
           {:ok, stage, beat} ->
             sc = %{
               sc
@@ -158,20 +169,37 @@ defmodule Play1.Stage do
                 first: nil
             }
 
-            if sc.beats >= @min_beats do
-              case judge(stage, sc, false) do
-                {:ok, %{decision: :end} = verdict} -> close(stage, sc, verdict)
-                {:ok, _continue} -> beats(stage, sc)
-                {:error, reason} -> {:error, reason, stage}
-              end
-            else
-              beats(stage, sc)
+            case judge(stage, sc, false) do
+              {:ok, %{decision: :end} = verdict} ->
+                close(stage, sc, verdict)
+
+              {:ok, verdict} ->
+                sc =
+                  if verdict.thing_shown,
+                    do: %{sc | revealed: Enum.uniq(sc.revealed ++ [sc.spotlight])},
+                    else: sc
+
+                {stage, sc} = move_spotlight(stage, sc, verdict.spotlight)
+                beats(stage, sc)
+
+              {:error, reason} ->
+                {:error, reason, stage}
             end
 
           {:error, reason, stage} ->
             {:error, reason, stage}
         end
     end
+  end
+
+  defp move_spotlight(stage, %{spotlight: same} = sc, same), do: {stage, sc}
+  defp move_spotlight(stage, sc, nil), do: {stage, sc}
+
+  defp move_spotlight(stage, sc, who) do
+    stage =
+      stage |> Map.update!(:entries, &[{:spotlight, who} | &1]) |> maybe_print({:spotlight, who})
+
+    {stage, %{sc | spotlight: who, lit: Enum.uniq(sc.lit ++ [who])}}
   end
 
   defp finish(stage, sc, forced) do
@@ -182,7 +210,7 @@ defmodule Play1.Stage do
   end
 
   defp close(stage, sc, verdict) do
-    text = verdict.closing || "Nobody answers."
+    text = verdict.closing || "A silence, which nobody moves to fill."
 
     stage =
       stage
@@ -206,7 +234,7 @@ defmodule Play1.Stage do
       Enum.reduce(due, stage, fn %{who: who}, stage ->
         if Room.place_of(stage.room, who) do
           {room, _} = Room.move(stage.room, who, {:place_room, sc.plan.where})
-          stage |> Map.put(:room, room) |> note("#{Cast.stage_name(who)} comes in.")
+          stage |> Map.put(:room, room) |> note("Enter #{Cast.stage_name(who)}.")
         else
           stage
         end
@@ -221,23 +249,33 @@ defmodule Play1.Stage do
     {stage, %{sc | arrivals: later, first: first}}
   end
 
-  # The director asked for Ambrose: Mrs. Ashworth brings him down, he thinks,
-  # everyone present reacts, she takes him out; then the scene goes on.
+  # The director asked for Ambrose: Mrs. Ashworth announces him, Cruttwell
+  # brings him in and commands him to think, he thinks, everyone present is
+  # affected in their own assigned way, and Cruttwell takes him out again.
   defp maybe_disrupt(stage, %{plan: %{disruption: false}} = sc), do: {:ok, stage, sc}
 
   defp maybe_disrupt(stage, sc) do
     visitor = Cast.visitor()
+    keeper = Cast.keeper()
     host = Cast.host()
     where = sc.plan.where
+    premise = sc.plan.premise
 
-    room = stage.room |> Room.enter(host, where) |> Room.enter(visitor, where)
+    room =
+      stage.room
+      |> Room.enter(host, where)
+      |> Room.enter(keeper, where)
+      |> Room.enter(visitor, where)
 
     stage =
       stage
       |> Map.put(:room, room)
       |> note(
-        "MRS. ASHWORTH goes out. A pause. She returns leading the REVEREND AMBROSE ASHWORTH by the arm: seventy, a black coat too large for him, his hat held in both hands."
+        "Enter CRUTTWELL, large and florid, a short strap in one hand; with the other he holds the sleeve of AMBROSE: seventy, a black coat too large for him, his hat held in both hands."
       )
+
+    present = Room.members(stage.room, where) -- Cast.visitors()
+    reactions = Plan.assign_reactions(sc.plan, present)
 
     with {:ok, stage, b1} <-
            take(
@@ -245,49 +283,66 @@ defmodule Play1.Stage do
              host,
              :scene,
              where,
-             sc.plan.premise,
-             "You have brought your brother-in-law Ambrose down from the second floor. Introduce him to your friends in your own fashion, take his hat from him, and command him: think, Ambrose."
+             premise,
+             "Cruttwell has brought Ambrose down, as you asked him to. Introduce the pair of them to your friends in your own fashion."
            ),
          {:ok, stage, b2} <-
+           take(
+             stage,
+             keeper,
+             :scene,
+             where,
+             premise,
+             "You have brought Ambrose in. Address the company: who you are, what he is, what he costs you. Then take his hat from him and command him: think, Ambrose."
+           ),
+         {:ok, stage, b3} <-
            take(
              stage,
              visitor,
              :scene,
              where,
-             sc.plan.premise,
-             "Mrs. Ashworth has taken your hat and told you to think."
+             premise,
+             "Cruttwell has taken your hat and told you to think."
            ),
-         {:ok, stage, reactions} <- reactions(stage, where, sc.plan.premise),
-         {:ok, stage, b3} <-
+         {:ok, stage, reacts} <- reactions(stage, where, premise, reactions),
+         {:ok, stage, b4} <-
            take(
              stage,
-             host,
+             keeper,
              :scene,
              where,
-             sc.plan.premise,
-             "That is enough. Give Ambrose his hat and take him out, saying what a hostess says to cover it."
+             premise,
+             "That is enough. Stop him, give him his hat, and take him out, saying to the company what a man like you says on such an exit."
            ) do
       {room, _} = Room.move(stage.room, visitor, :leave)
+      {room, _} = Room.move(room, keeper, :leave)
 
       stage =
         stage
         |> Map.put(:room, room)
-        |> note("MRS. ASHWORTH leads AMBROSE out. The door closes. Nobody speaks for a moment.")
+        |> note(
+          "Exeunt CRUTTWELL and AMBROSE, the one leading the other by the sleeve. A silence."
+        )
 
-      lines = Enum.map([b1, b2] ++ reactions ++ [b3], &Beat.to_script/1)
+      lines = Enum.map([b1, b2, b3] ++ reacts ++ [b4], &Beat.to_script/1)
 
       {:ok, stage,
        %{sc | beats: sc.beats + length(lines), transcript: sc.transcript ++ lines, first: nil}}
     end
   end
 
-  defp reactions(stage, where, premise) do
-    cue =
-      "You have just heard the Reverend Ambrose think. You are profoundly affected: awed, disgusted, moved, frightened, or changed; decide which, and let it bend your game, your beliefs, or your feeling toward somebody present."
-
-    present = Room.members(stage.room, where) -- [Cast.visitor(), Cast.host()]
+  defp reactions(stage, where, premise, assigned) do
+    present = Room.members(stage.room, where) -- Cast.visitors()
 
     Enum.reduce_while(present, {:ok, stage, []}, fn id, {:ok, stage, acc} ->
+      mode = Map.fetch!(assigned, id)
+      direction = Keyword.fetch!(Cast.reactions(), mode)
+
+      cue =
+        "You have just heard the Reverend Ambrose think. You are profoundly affected, and in this " <>
+          "particular way, which is yours alone tonight: #{direction} Let it show in what you say and do, " <>
+          "and let it bend your game, your beliefs, or your feeling toward somebody present."
+
       case take(stage, id, :scene, where, premise, cue) do
         {:ok, stage, beat} -> {:cont, {:ok, stage, acc ++ [beat]}}
         {:error, reason, stage} -> {:halt, {:error, reason, stage}}
@@ -319,20 +374,20 @@ defmodule Play1.Stage do
   end
 
   defp judge(stage, sc, forced) do
-    signal =
-      Signal.new!(
-        "scene.judge",
-        %{
-          plan: sc.plan,
-          transcript: sc.transcript,
-          beats: sc.beats,
-          min_beats: @min_beats,
-          forced: forced
-        },
-        source: "/stage"
-      )
+    data = %{
+      plan: sc.plan,
+      transcript: sc.transcript,
+      beats: sc.beats,
+      min_beats: @min_beats,
+      spotlight: sc.spotlight,
+      lit: sc.lit,
+      revealed: sc.revealed,
+      present: Room.members(stage.room, sc.plan.where) -- Cast.visitors(),
+      forced: forced
+    }
 
-    :ok = Jido.AgentServer.cast(pid!(:director), signal)
+    :ok =
+      Jido.AgentServer.cast(pid!(:director), Signal.new!("scene.judge", data, source: "/stage"))
 
     receive do
       {:signal, %Signal{type: "scene.judged", data: %{verdict: verdict}}} ->
@@ -347,16 +402,23 @@ defmodule Play1.Stage do
 
   # --- speakers and beats ---------------------------------------------------------
 
-  defp choose_speaker(stage, where) do
-    members = Room.members(stage.room, where) -- [Cast.visitor()]
+  # The character in the spotlight speaks every other beat; between their beats
+  # the others take turns, whoever was addressed first, then whoever has waited longest.
+  defp choose_speaker(stage, where, spotlight) do
+    members = Room.members(stage.room, where) -- Cast.visitors()
     last = last_speaker(stage)
 
-    if stage.last_addressed in members and stage.last_addressed != last do
-      stage.last_addressed
-    else
-      members
-      |> Enum.reject(&(&1 == last and length(members) > 1))
-      |> Enum.min_by(&{Map.get(stage.last_spoke, &1, 0), cast_index(&1)})
+    cond do
+      spotlight in members and last != spotlight ->
+        spotlight
+
+      stage.last_addressed in members and stage.last_addressed != last ->
+        stage.last_addressed
+
+      true ->
+        members
+        |> Enum.reject(&(&1 == last and length(members) > 1))
+        |> Enum.min_by(&{Map.get(stage.last_spoke, &1, 0), cast_index(&1)})
     end
   end
 
@@ -374,9 +436,9 @@ defmodule Play1.Stage do
 
   defp cast_index(id), do: Enum.find_index(Cast.ids(), &(&1 == id))
 
-  defp take(stage, speaker, phase, where, premise, cue) do
+  defp take(stage, speaker, phase, where, premise, cue, spotlight \\ nil) do
     group = Room.members(stage.room, where)
-    elsewhere = Room.present(stage.room) -- (group -- [Cast.visitor()])
+    elsewhere = Room.present(stage.room) -- (group -- Cast.visitors())
 
     signal =
       Signal.new!(
@@ -388,6 +450,7 @@ defmodule Play1.Stage do
           group: group,
           elsewhere: elsewhere,
           premise: premise,
+          spotlight: spotlight,
           cue: cue
         },
         source: "/stage"
@@ -422,8 +485,8 @@ defmodule Play1.Stage do
     stage = Map.put(stage, :room, room)
 
     case move do
-      :leave -> note(stage, "#{Cast.stage_name(speaker)} takes leave and goes out.")
-      :withdraw -> note(stage, "#{Cast.stage_name(speaker)} goes out, toward #{to}.")
+      :leave -> note(stage, "Exit #{Cast.stage_name(speaker)}.")
+      :withdraw -> note(stage, "Exit #{Cast.stage_name(speaker)}, toward #{to}.")
       _ -> stage
     end
   end
