@@ -15,7 +15,15 @@ Each character carries a **game** in the sense of the Upright Citizens Brigade's
 | Mrs. Ashworth (hostess) | The introducer |
 | The Reverend Ambrose Ashworth | Disruption: one monologue, then he is taken away |
 
-Everyone has known everyone for years and is fond of them all, to varying degrees. The curtain rises on two people talking by the fire. Others cross the room and join. In the middle Mrs. Ashworth brings her brother-in-law down from the second floor to "think" for the company: a Lucky-like torrent that borders on meaninglessness and leaves everyone profoundly affected. Late in the evening people slip away.
+Everyone has known everyone for years and is fond of them all, to varying degrees.
+
+## The director
+
+A seventh agent, the director, sets up each scene and ends it. It never writes dialogue. For each scene it decides who is in it, where in the house, and what the premise is, and heads the scene with a note that begins with who, what and where:
+
+> Dr. Pembroke and Mrs. Marchmont meet Miss Vane in the parlour, who has a most unusual proposition.
+
+It may plan an arrival part-way through, and once in the play it may have Mrs. Ashworth bring her brother-in-law down from the second floor to "think" for the company: a Lucky-like torrent that borders on meaninglessness and leaves everyone profoundly affected. After every beat past the fourth the director is shown the scene so far and asked whether it has reached its moment; when it says so, it writes the closing action line and records, for its own synopsis, what the scene changed. The director sees only the public script, as an audience would, never a character's private state. Its plans, verdicts and synopsis are printed after the script as "The director's book".
 
 ## Run
 
@@ -23,8 +31,8 @@ Everyone has known everyone for years and is fond of them all, to varying degree
 cp .env.example .env      # OpenRouter key
 mix deps.get
 mix test                  # stubbed model, instant
-mix play                  # forty beats, about ten minutes
-mix play --beats 56
+mix play                  # five scenes
+mix play --scenes 7
 mix play --stub           # canned model, to see the plumbing
 ```
 
@@ -39,8 +47,10 @@ Scripts land in `scripts/` (ignored); keepers go in `plays/` (committed).
 | `Play1.Beat` | A beat as data: line, direction, addressee, game move, private inner thought, move. `public/1` strips the private fields. |
 | `Play1.Actions.TakeBeat` | Asks the model for a beat, enforces the game discipline, remembers it, reports it to the stage. |
 | `Play1.Actions.HearBeat` | Pure: remembers a beat witnessed in the same conversation. |
-| `Play1.Room` | Who stands where; joining, withdrawing, leaving. |
-| `Play1.Stage` | The director: camera, speaker order, joins, the interlude, delivery of beats only to those present. Reads no private state until the end. |
+| `Play1.Director` | The director agent. Routes `scene.plan` to `PlanScene` and `scene.judge` to `JudgeScene`; keeps its plans, verdicts and synopsis. |
+| `Play1.Plan` | A scene plan: who, where, premise, note, time, arrivals, disruption, beat limit. |
+| `Play1.Room` | Who is in which room of the house; joining, withdrawing, leaving. |
+| `Play1.Stage` | The stage manager: asks the director for each plan, sets the room, runs speaker order, delivers beats only to those in the room, asks the director when to end. Reads no private state until the end. |
 | `Play1.Report` | Screenplay layout, then a separated debug section and a summary. |
 | `Play1.LLM` | Model boundary with an OpenRouter client and a deterministic stub. |
 

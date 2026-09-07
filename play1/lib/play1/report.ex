@@ -1,8 +1,9 @@
 defmodule Play1.Report do
   @moduledoc """
-  Renders the performance as a screenplay: scene heading, action lines,
-  character cues, parentheticals and dialogue in the conventional columns.
-  A separated debug section and a summary follow the script.
+  Renders the performance as a screenplay: scene headings with the director's
+  note, action lines, character cues, parentheticals and dialogue in the
+  conventional columns. The director's book, a debug section and a summary
+  follow the script, clearly separated.
   """
 
   alias Play1.{Beat, Cast}
@@ -21,16 +22,30 @@ defmodule Play1.Report do
 
     The Etheridge Circle, a fortnight on.
 
-    FADE IN:
-
-    INT. MRS. ASHWORTH'S DRAWING-ROOM, LANSDOWN, CHELTENHAM - NIGHT
-
     #{action(String.trim(Cast.setting()))}
+
+    FADE IN:
     """
   end
 
   @doc "One entry in screenplay form."
   @spec entry_text(term()) :: String.t()
+  def entry_text({:scene, plan}) do
+    """
+    SCENE #{plan.number}
+
+    INT. #{Cast.heading(plan.where)}, MRS. ASHWORTH'S HOUSE - NIGHT, #{plan.time}
+
+    #{action("[Director's note: #{plan.note}]")}
+
+    #{action("#{Enum.map_join(plan.who, ", ", &Cast.stage_name/1)}, #{String.replace(plan.where, "the ", "in the ")}.")}
+    """
+    |> String.trim_trailing()
+  end
+
+  def entry_text({:closing, _number, text}),
+    do: action(text) <> "\n\n" <> String.duplicate(" ", 50) <> "CUT TO:"
+
   def entry_text({:beat, %Beat{kind: :silent} = beat}),
     do: action("#{Cast.stage_name(beat.speaker)} #{beat.direction || "says nothing"}.")
 
@@ -52,21 +67,54 @@ defmodule Play1.Report do
     |> Enum.join("\n")
   end
 
-  def entry_text({:cut, place, members}),
-    do: action("At #{place}: #{Enum.map_join(members, ", ", &Cast.stage_name/1)}.")
-
   def entry_text({:note, text}), do: action(text)
 
-  @spec render([term()], map(), map()) :: String.t()
-  def render(entries, initial, final) do
+  @spec render([term()], map(), map(), map()) :: String.t()
+  def render(entries, initial, final, director) do
     [
       header(),
       Enum.map_join(entries, "\n\n", &entry_text/1),
       "",
+      director_section(director),
       debug_section(entries),
       summary_section(initial, final)
     ]
     |> Enum.join("\n")
+  end
+
+  @doc "The director's plans and verdicts, scene by scene."
+  @spec director_section(map()) :: String.t()
+  def director_section(director) do
+    plans =
+      Enum.map_join(director.plans, "\n", fn plan ->
+        """
+        Scene #{plan.number}, #{plan.where}, #{plan.time}: #{Enum.map_join(plan.who, ", ", &Cast.short_name/1)}#{arrivals(plan)}#{if plan.disruption, do: "; Ambrose brought down", else: ""}
+          note: #{plan.note}
+          premise: #{plan.premise}
+          goal: #{plan.dramatic_goal || "(none)"}
+        """
+      end)
+
+    endings =
+      director.verdicts
+      |> Enum.filter(&(&1.decision == :end))
+      |> Enum.map_join(
+        "\n",
+        &"  ended: #{&1.reason || "(no reason)"}\n  record: #{&1.summary || "(none)"}"
+      )
+
+    """
+    #{@rule}
+    THE DIRECTOR'S BOOK (not part of the play)
+    #{@rule}
+
+    #{plans}
+    Endings:
+    #{endings}
+
+    Synopsis:
+    #{Enum.join(director.synopsis, "\n")}
+    """
   end
 
   @spec debug_section([term()]) :: String.t()
@@ -78,7 +126,7 @@ defmodule Play1.Report do
         with_ = Enum.map_join(b.group -- [b.speaker], ", ", &Cast.short_name/1)
 
         """
-        #{b.seq} #{Cast.short_name(b.speaker)} at #{b.place} with #{if with_ == "", do: "nobody", else: with_} [#{b.kind}; game: #{b.game_move}, rung #{b.rung}]
+        #{b.seq} #{Cast.short_name(b.speaker)} in #{b.place} with #{if with_ == "", do: "nobody", else: with_} [#{b.kind}; game: #{b.game_move}, rung #{b.rung}]
           inner: #{b.inner || "(none)"}
           move: #{inspect(b.move)}; relationship: #{inspect(b.relationship)}
         """
@@ -122,11 +170,18 @@ defmodule Play1.Report do
 
   # --- formatting ---
 
-  defp action(text),
+  defp arrivals(%{arrivals: []}), do: ""
+
+  defp arrivals(%{arrivals: list}),
     do:
-      text
-      |> String.split(~r/\n\s*\n/)
-      |> Enum.map_join("\n\n", &wrap(String.replace(&1, ~r/\s*\n\s*/, " "), @action_width, 0))
+      "; arriving: " <>
+        Enum.map_join(list, ", ", &"#{Cast.short_name(&1.who)} after beat #{&1.after_beats}")
+
+  defp action(text) do
+    text
+    |> String.split(~r/\n\s*\n/)
+    |> Enum.map_join("\n\n", &wrap(String.replace(&1, ~r/\s*\n\s*/, " "), @action_width, 0))
+  end
 
   defp wrap(text, width, indent) do
     pad = String.duplicate(" ", indent)

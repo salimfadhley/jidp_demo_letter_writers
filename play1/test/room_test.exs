@@ -3,30 +3,30 @@ defmodule Play1.RoomTest do
 
   alias Play1.Room
 
-  test "groups are simply who stands where" do
+  test "groups are simply who is in which room" do
     room =
       Room.new()
-      |> Room.enter(:lavinia_ashworth, "the door to the hall")
-      |> Room.enter(:helena_marchmont, "the fire")
-      |> Room.enter(:arthur_pembroke, "the fire")
+      |> Room.enter(:lavinia_ashworth, "the hall")
+      |> Room.enter(:helena_marchmont, "the drawing-room")
+      |> Room.enter(:arthur_pembroke, "the drawing-room")
 
     assert Room.groups(room) == [
-             {"the fire", [:helena_marchmont, :arthur_pembroke]},
-             {"the door to the hall", [:lavinia_ashworth]}
+             {"the drawing-room", [:helena_marchmont, :arthur_pembroke]},
+             {"the hall", [:lavinia_ashworth]}
            ]
 
-    assert Room.members(room, "the fire") == [:helena_marchmont, :arthur_pembroke]
+    assert Room.members(room, "the drawing-room") == [:helena_marchmont, :arthur_pembroke]
   end
 
   test "joining, withdrawing and leaving" do
     room =
       Room.new()
-      |> Room.enter(:helena_marchmont, "the fire")
-      |> Room.enter(:clara_vane, "the window")
+      |> Room.enter(:helena_marchmont, "the parlour")
+      |> Room.enter(:clara_vane, "the library")
 
-    {room, "the fire"} = Room.move(room, :clara_vane, {:join, :helena_marchmont})
+    {room, "the parlour"} = Room.move(room, :clara_vane, {:join, :helena_marchmont})
     {room, away} = Room.move(room, :clara_vane, :withdraw)
-    assert away != "the fire"
+    assert away != "the parlour"
     assert Room.members(room, away) == [:clara_vane]
     {room, nil} = Room.move(room, :clara_vane, :leave)
     assert Room.present(room) == [:helena_marchmont]
@@ -34,7 +34,7 @@ defmodule Play1.RoomTest do
   end
 
   test "joining someone who has left keeps you where you are" do
-    room = Room.new() |> Room.enter(:helena_marchmont, "the fire")
-    assert {^room, "the fire"} = Room.move(room, :helena_marchmont, {:join, :julian_strake})
+    room = Room.new() |> Room.enter(:helena_marchmont, "the parlour")
+    assert {^room, "the parlour"} = Room.move(room, :helena_marchmont, {:join, :julian_strake})
   end
 end

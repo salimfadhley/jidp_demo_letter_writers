@@ -2,8 +2,8 @@ defmodule Mix.Tasks.Play do
   @shortdoc "Perform An Evening at Mrs. Ashworth's"
 
   @moduledoc """
-      mix play                 # forty beats
-      mix play --beats 56
+      mix play                 # five scenes
+      mix play --scenes 7
       mix play --stub          # canned model, instant
       mix play --out script.txt
   """
@@ -14,14 +14,15 @@ defmodule Mix.Tasks.Play do
   def run(args) do
     {opts, _, _} =
       OptionParser.parse(args,
-        strict: [beats: :integer, stub: :boolean, out: :string, timeout: :integer]
+        strict: [scenes: :integer, stub: :boolean, out: :string, timeout: :integer]
       )
 
     if opts[:stub], do: Application.put_env(:play1, :llm_client, Play1.LLM.Stub)
     Mix.Task.run("app.start")
 
-    case Play1.Stage.run(Keyword.take(opts, [:beats, :out, :timeout])) do
+    case Play1.Stage.run(Keyword.take(opts, [:scenes, :out, :timeout])) do
       {:ok, result} ->
+        Mix.shell().info(Play1.Report.director_section(result.director))
         Mix.shell().info(Play1.Report.debug_section(result.entries))
         Mix.shell().info(Play1.Report.summary_section(result.initial, result.final))
         if result.path, do: Mix.shell().info("Script written to #{Path.expand(result.path)}")

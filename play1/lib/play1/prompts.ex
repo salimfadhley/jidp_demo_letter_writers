@@ -86,7 +86,7 @@ defmodule Play1.Prompts do
   @spec beat(map(), map()) :: String.t()
   def beat(%{role: "visitor"}, params) do
     """
-    TASK: SPEAK your monologue, now, at #{params.place}. Present: #{names(params.group)}.
+    TASK: SPEAK your monologue, now, in #{params.place}. Present: #{names(params.group)}.
     #{params.cue}
 
     Return exactly this JSON object:
@@ -107,10 +107,14 @@ defmodule Play1.Prompts do
     others = Enum.reject(params.group, &(&1 == state.character_id))
 
     """
-    TASK: TAKE A BEAT. Beat #{params.seq}, #{phase(params.phase)}. You are at #{params.place}.
-    In this conversation with you: #{if others == [], do: "nobody; you are alone for the moment", else: names(others)}.
-    Elsewhere in the room, out of earshot: #{elsewhere(params)}.
+    TASK: TAKE A BEAT. Beat #{params.seq} of the scene. You are in #{params.place}.
+    In the scene with you: #{if others == [], do: "nobody; you are alone for the moment", else: names(others)}.
+    Elsewhere in the house, out of earshot: #{elsewhere(params)}.
     #{dispositions(state, others)}
+
+    ## The scene, as the director set it
+    #{Map.get(params, :premise) || "(no premise given)"}
+
     #{params.cue}
 
     ## What you have witnessed so far, oldest first
@@ -121,8 +125,8 @@ defmodule Play1.Prompts do
     your ladder (0 means you have not yet begun to climb). #{game_advice(state)}
 
     Decide what you do in this beat: speak, speak aside, or only act. You may also, with this
-    beat, slip away from this conversation to another part of the room (withdraw), or take
-    your leave of the house (leave); otherwise stay. Ids: #{ids_json()}.
+    beat, slip away from this scene to another part of the house (withdraw), or take your leave
+    of the house altogether (leave); otherwise stay. Ids: #{ids_json()}.
 
     Return exactly this JSON object:
     {
@@ -137,10 +141,6 @@ defmodule Play1.Prompts do
     }
     """
   end
-
-  defp phase(:opening), do: "early in the evening"
-  defp phase(:party), do: "the party is under way"
-  defp phase(:late), do: "it is late, and people are beginning to slip away"
 
   defp elsewhere(%{elsewhere: []}), do: "nobody"
   defp elsewhere(%{elsewhere: ids}), do: Enum.map_join(ids, ", ", &Cast.name/1)

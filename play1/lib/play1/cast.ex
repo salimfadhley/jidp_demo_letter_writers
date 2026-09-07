@@ -28,13 +28,14 @@ defmodule Play1.Cast do
   @host :lavinia_ashworth
   @visitor :ambrose_ashworth
 
-  @places [
-    "the fire",
-    "the window",
-    "the sideboard",
-    "the ottoman",
-    "the piano",
-    "the door to the hall"
+  @rooms [
+    "the drawing-room",
+    "the parlour",
+    "the hall",
+    "the dining-room",
+    "the conservatory",
+    "the library",
+    "the garden steps"
   ]
 
   @names %{
@@ -81,8 +82,9 @@ defmodule Play1.Cast do
   @spec company() :: [id()]
   def company, do: [@host | @guests]
 
-  @spec places() :: [String.t()]
-  def places, do: @places
+  @doc "Rooms of Mrs. Ashworth's house in which a scene may be set."
+  @spec rooms() :: [String.t()]
+  def rooms, do: @rooms
 
   @spec name(id()) :: String.t()
   def name(id), do: Map.fetch!(@names, id)
@@ -116,21 +118,26 @@ defmodule Play1.Cast do
 
   def parse_id(_, _opts), do: nil
 
-  @doc "Match a model-written place to one of the room's places."
-  @spec parse_place(term()) :: String.t() | nil
-  def parse_place(value) when is_binary(value) do
+  @doc "Match a model-written room to one of the house's rooms."
+  @spec parse_room(term()) :: String.t() | nil
+  def parse_room(value) when is_binary(value) do
     wanted =
       value
       |> String.trim()
       |> String.downcase()
-      |> String.replace(~r/^(the|by the|at the)\s+/, "")
+      |> String.replace(~r/^(the|in the|at the|by the)\s+/, "")
+      |> String.replace(" ", "-")
 
-    Enum.find(@places, fn place ->
-      String.replace(place, "the ", "") == wanted or place == wanted
+    Enum.find(@rooms, fn room ->
+      room |> String.replace("the ", "") |> String.replace(" ", "-") == wanted
     end)
   end
 
-  def parse_place(_), do: nil
+  def parse_room(_), do: nil
+
+  @doc "A room as it appears in a scene heading, e.g. `THE PARLOUR`."
+  @spec heading(String.t()) :: String.t()
+  def heading(room), do: String.upcase(room)
 
   @doc "The setting, printed at the head of the script."
   @spec setting() :: String.t()

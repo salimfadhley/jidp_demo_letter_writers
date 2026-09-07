@@ -30,10 +30,10 @@ defmodule Play1.Room do
     Enum.filter(Cast.ids(), &(Map.get(room.at, &1) == place))
   end
 
-  @doc "All occupied places with their members, in the order of `Cast.places/0`."
+  @doc "All occupied rooms with their members, in the order of `Cast.rooms/0`."
   @spec groups(t()) :: [{String.t(), [Cast.id()]}]
   def groups(%__MODULE__{} = room) do
-    Cast.places()
+    Cast.rooms()
     |> Enum.map(&{&1, members(room, &1)})
     |> Enum.reject(fn {_place, members} -> members == [] end)
   end
@@ -55,8 +55,10 @@ defmodule Play1.Room do
     end
   end
 
+  def move(%__MODULE__{} = room, id, {:place_room, place}), do: {enter(room, id, place), place}
+
   def move(%__MODULE__{} = room, id, :withdraw) do
-    place = Enum.find(Cast.places(), List.last(Cast.places()), &(members(room, &1) == []))
+    place = Enum.find(Cast.rooms(), List.last(Cast.rooms()), &(members(room, &1) == []))
     {enter(room, id, place), place}
   end
 

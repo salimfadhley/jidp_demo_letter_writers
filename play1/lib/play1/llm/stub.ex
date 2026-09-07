@@ -11,6 +11,83 @@ defmodule Play1.LLM.Stub do
 
   @impl true
   def complete(_system, _user, opts) do
+    case Keyword.get(opts, :kind) do
+      :plan -> {:ok, Jason.encode!(plan(opts))}
+      :judge -> {:ok, Jason.encode!(judge(opts))}
+      _ -> beat(opts)
+    end
+  end
+
+  # Fixed scene plans, so tests see two-handers, an arrival, the disruption, and an ending.
+  defp plan(opts) do
+    number = Keyword.fetch!(opts, :number)
+    total = Keyword.fetch!(opts, :total)
+
+    base =
+      case rem(number, 4) do
+        1 ->
+          %{
+            "who" => ["helena_marchmont", "arthur_pembroke"],
+            "where" => "the drawing-room",
+            "arrivals" => [%{"who" => "clara_vane", "after_beats" => 3}],
+            "disruption" => false
+          }
+
+        2 ->
+          %{
+            "who" => ["clara_vane", "julian_strake"],
+            "where" => "the conservatory",
+            "arrivals" => [],
+            "disruption" => false
+          }
+
+        3 ->
+          %{
+            "who" => ["lavinia_ashworth", "helena_marchmont", "arthur_pembroke", "julian_strake"],
+            "where" => "the drawing-room",
+            "arrivals" => [],
+            "disruption" => true
+          }
+
+        0 ->
+          %{
+            "who" => ["lavinia_ashworth", "clara_vane"],
+            "where" => "the parlour",
+            "arrivals" => [%{"who" => "julian_strake", "after_beats" => 2}],
+            "disruption" => false
+          }
+      end
+
+    Map.merge(base, %{
+      "time" => if(number == 1, do: "CONTINUOUS", else: "LATER"),
+      "note" =>
+        "Stub note for scene #{number}: #{Enum.join(base["who"], " and ")} in #{base["where"]}.",
+      "premise" => "Stub premise for scene #{number}.",
+      "dramatic_goal" => "Stub goal.",
+      "opening_line_by" => hd(base["who"]),
+      "max_beats" => if(number == total, do: 6, else: 8)
+    })
+  end
+
+  # End every scene after six beats, or when forced.
+  defp judge(opts) do
+    beats = Keyword.fetch!(opts, :beats)
+    ending = Keyword.fetch!(opts, :forced) or beats >= 6
+
+    %{
+      "decision" => if(ending, do: "end", else: "continue"),
+      "reason" => "Stub reason.",
+      "closing" =>
+        if(ending,
+          do: "Stub closing line for scene #{Keyword.fetch!(opts, :number)}: nobody answers.",
+          else: nil
+        ),
+      "summary" =>
+        if(ending, do: "Stub summary of scene #{Keyword.fetch!(opts, :number)}.", else: nil)
+    }
+  end
+
+  defp beat(opts) do
     from = Keyword.fetch!(opts, :from)
     seq = Keyword.fetch!(opts, :seq)
     phase = Keyword.fetch!(opts, :phase)
@@ -62,7 +139,7 @@ defmodule Play1.LLM.Stub do
     }
   end
 
-  defp move(_from, seq, :party) when rem(seq, 9) == 0, do: %{"to" => "withdraw"}
-  defp move(from, _seq, :late) when from != :lavinia_ashworth, do: %{"to" => "leave"}
+  defp move(_from, seq, :scene) when rem(seq, 11) == 0, do: %{"to" => "withdraw"}
+  defp move(from, _seq, :last) when from != :lavinia_ashworth, do: %{"to" => "leave"}
   defp move(_from, _seq, _phase), do: nil
 end

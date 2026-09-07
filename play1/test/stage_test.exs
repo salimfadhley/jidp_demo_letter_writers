@@ -1,43 +1,42 @@
 defmodule Play1.StageTest do
   use ExUnit.Case, async: false
 
-  alias Play1.{Beat, Cast, Stage}
+  alias Play1.{Beat, Cast, Plan, Stage}
 
   @opts [out: nil, quiet: true, timeout: 10_000]
 
-  test "the curtain rises on two, others join, the visitor thinks once, and people slip away" do
-    {:ok, result} = Stage.run(Keyword.put(@opts, :beats, 40))
+  test "the director sets up each scene, the actors play it, and the director ends it" do
+    {:ok, result} = Stage.run(Keyword.put(@opts, :scenes, 4))
+
+    plans = for {:scene, p} <- result.entries, do: p
+    closings = for {:closing, n, _} <- result.entries, do: n
     beats = for {:beat, b} <- result.entries, do: b
 
-    assert hd(beats).group == [:helena_marchmont, :arthur_pembroke]
-    assert Enum.all?(Enum.take(beats, 5), &(&1.speaker in [:helena_marchmont, :arthur_pembroke]))
+    assert length(plans) == 4
+    assert closings == [1, 2, 3, 4]
+    assert Enum.all?(plans, &match?(%Plan{}, &1))
 
-    speakers = beats |> Enum.map(& &1.speaker) |> Enum.uniq() |> Enum.sort()
-    assert speakers == Enum.sort(Cast.ids())
+    # Scene 1 opens on two people; the stub's planned arrival comes in after beat 3.
+    [first | _] = plans
+    assert first.who == [:helena_marchmont, :arthur_pembroke]
+    scene1 = Enum.filter(beats, &(&1.seq <= 8))
+    assert Enum.all?(Enum.take(scene1, 3), &(&1.group == [:helena_marchmont, :arthur_pembroke]))
+    assert Enum.any?(result.entries, &match?({:note, "MISS VANE comes in."}, &1))
 
-    assert [%Beat{speaker: :ambrose_ashworth, group: group}] =
-             Enum.filter(beats, &(&1.kind == :monologue))
+    # The disruption happens in the scene the director asked for it, once.
+    assert [%Beat{speaker: :ambrose_ashworth}] = Enum.filter(beats, &(&1.kind == :monologue))
+    assert Enum.count(plans, & &1.disruption) == 1
 
-    assert Enum.sort(group) == Enum.sort(Cast.ids())
-
-    joins =
-      Enum.filter(
-        result.entries,
-        &(match?({:note, "MRS." <> _}, &1) or match?({:note, "MISS" <> _}, &1) or
-            match?({:note, "MR." <> _}, &1) or match?({:note, "DR." <> _}, &1))
-      )
-
-    assert Enum.any?(joins, fn {:note, t} -> t =~ "joins them" end)
-
-    assert Enum.count(beats, &(&1.move == :leave)) >= 2
-    assert result.script =~ "FADE IN:"
-    assert result.script =~ "INT. MRS. ASHWORTH'S DRAWING-ROOM"
+    # The director's own record grows a line per scene, and it saw no private state.
+    assert length(result.director.synopsis) == 4
+    assert result.script =~ "[Director's note:"
+    assert result.script =~ "SCENE 3"
+    assert result.script =~ "THE DIRECTOR'S BOOK"
     assert result.script =~ "FADE OUT."
-    assert result.script =~ "DEBUG: PRIVATE STATE PER BEAT"
   end
 
-  test "characters witness only the beats spoken where they stood" do
-    {:ok, result} = Stage.run(Keyword.put(@opts, :beats, 30))
+  test "characters witness only the beats spoken in the room they were in" do
+    {:ok, result} = Stage.run(Keyword.put(@opts, :scenes, 3))
     beats = for {:beat, b} <- result.entries, do: b
 
     for id <- Cast.company() do
@@ -55,14 +54,15 @@ defmodule Play1.StageTest do
   end
 
   test "dialogue is laid out in screenplay columns" do
-    {:ok, result} = Stage.run(Keyword.put(@opts, :beats, 24))
+    {:ok, result} = Stage.run(Keyword.put(@opts, :scenes, 1))
     assert result.script =~ "\n                      MRS. MARCHMONT\n"
     assert result.script =~ "\n                (sips the cup)\n          "
+    assert result.script =~ "INT. THE DRAWING-ROOM, MRS. ASHWORTH'S HOUSE - NIGHT, CONTINUOUS"
   end
 
   test "two stub performances are identical" do
-    {:ok, a} = Stage.run(Keyword.put(@opts, :beats, 28))
-    {:ok, b} = Stage.run(Keyword.put(@opts, :beats, 28))
+    {:ok, a} = Stage.run(Keyword.put(@opts, :scenes, 2))
+    {:ok, b} = Stage.run(Keyword.put(@opts, :scenes, 2))
     assert a.script == b.script
   end
 end
