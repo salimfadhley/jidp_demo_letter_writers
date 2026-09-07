@@ -1,33 +1,25 @@
-defmodule JidoDemo1.OpenRouter do
+defmodule JidoDemo1.LLM.OpenRouter do
   @moduledoc """
-  Minimal OpenRouter chat-completions client built on Req.
+  OpenRouter chat-completions client built on Req.
 
   The API key and default model come from application config, which
   `config/runtime.exs` populates from the environment (or a local `.env`).
   """
 
+  @behaviour JidoDemo1.LLM
+
   require Logger
 
   @url "https://openrouter.ai/api/v1/chat/completions"
 
-  @type message :: %{role: String.t(), content: String.t()}
-
-  @doc """
-  Send a chat completion request and return the assistant's reply text.
-
-  `system` is the system prompt; `messages` is the conversation so far.
-  Options: `:model`, `:temperature`, `:max_tokens`.
-  """
-  @spec chat(String.t(), [message()], keyword()) :: {:ok, String.t()} | {:error, term()}
-  def chat(system, messages, opts \\ []) do
+  @impl true
+  def complete(system, user, opts \\ []) do
     with {:ok, key} <- api_key() do
-      model = Keyword.get(opts, :model, default_model())
-
       body = %{
-        model: model,
-        messages: [%{role: "system", content: system} | messages],
+        model: Keyword.get(opts, :model, default_model()),
+        messages: [%{role: "system", content: system}, %{role: "user", content: user}],
         temperature: Keyword.get(opts, :temperature, 0.9),
-        max_tokens: Keyword.get(opts, :max_tokens, 800)
+        max_tokens: Keyword.get(opts, :max_tokens, 1500)
       }
 
       request =

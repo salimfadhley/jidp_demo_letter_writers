@@ -1,6 +1,6 @@
 # jido_demo1
 
-A small [Jido](https://hexdocs.pm/jido) multi-agent demo. Four Elixir agents, each playing a late-Victorian character, write letters to one another in a ring. Each letter is generated through [OpenRouter](https://openrouter.ai) and appended to a plain-text file, so the finished story can simply be read.
+A small [Jido](https://hexdocs.pm/jido) multi-agent drama. Four Elixir agents play the correspondents in *The Etheridge Circle, 1891*, exchanging letters after a private seance exposes a phrase that each character understands differently. Each agent has its own motives, secret, relationships, beliefs, and memories; only the public portion of a letter reaches its recipient.
 
 ## Setup
 
@@ -16,19 +16,24 @@ mix deps.get
 ## Run
 
 ```sh
-mix letters                       # eight letters, default premise
+mix letters                       # ten letters: scripted opening, then free choice
 mix letters --letters 12
-mix letters --premise "The vicar has announced a bicycle race."
+mix letters --no-opening          # let characters choose recipients from the start
+mix letters --stub                # deterministic run without an API call
+mix letters --out story.txt
 ```
 
-Each run writes a fresh file under `letters/`, for example `letters/correspondence-20260907-211718.txt`, and prints the path when done.
+Each run prints letters as they arrive and writes a report under `letters/`. The report contains the public correspondence, a private state-change trace, and a summary of how relationships and beliefs shifted.
 
 ## How it works
 
-- `JidoDemo1.Jido` is the Jido instance: a registry plus supervisor for agents.
-- `JidoDemo1.Correspondent` is the agent. Its state holds a persona, a private memory of letters sent and received, and the id of the next character. It routes `letter.received` signals to one action.
-- `JidoDemo1.Actions.WriteLetter` does the work: it asks OpenRouter for a letter in character, appends it to the story file, and emits a `letter.received` signal to the next agent and to the observer.
-- `JidoDemo1.Story` starts one agent per character, sends the opening premise to the first, and waits as the observer until the requested number of letters exist. It then stops the agents.
-- `JidoDemo1.Characters` is the cast. Edit it to change who is writing.
+- `JidoDemo1.Cast` defines the four characters and their initial private state.
+- `JidoDemo1.Character` is the Jido agent, routing compose and receive signals to separate actions.
+- `JidoDemo1.Actions.ComposeLetter` asks the configured LLM for a structured letter and dispatches only its public form.
+- `JidoDemo1.Actions.ReceiveLetter` privately appraises incoming mail and updates the recipient's relationships, beliefs, and pressures.
+- `JidoDemo1.Actions.ChooseCorrespondent` selects a recipient from private relationship state and unanswered mail.
+- `JidoDemo1.Story` directs the sequence and waits for sent/appraised signals; it does not write prose or inspect private state during the run.
+- `JidoDemo1.Report` renders the finished correspondence and post-run state summary.
+- `JidoDemo1.LLM` selects OpenRouter normally and a deterministic stub for tests or `--stub` runs.
 
-Each character only knows the letters it has itself sent and received, so news is passed along, embellished and misreported round the ring.
+The first eight letters use a scripted opening to establish the drama. Later letters use each sender's own state to choose a recipient, allowing the social pattern to evolve without sharing one agent's secrets with another.
