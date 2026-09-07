@@ -59,25 +59,57 @@ defmodule JidoDemo1.Cast do
   @spec agent_id(id()) :: String.t()
   def agent_id(id), do: Atom.to_string(id)
 
+  @doc """
+  The fifth character, who is not one of the correspondents and has no agent.
+  She is the occasion of the story: her invitation is the instigating incident.
+  """
+  @spec outsider() :: %{
+          name: String.t(),
+          short_name: String.t(),
+          location: String.t(),
+          description: String.t()
+        }
+  def outsider do
+    %{
+      name: "Mrs. Lavinia Ashworth",
+      short_name: "Mrs. Ashworth",
+      location: "Cheltenham",
+      description:
+        "Widow of a Bengal civilian, Mrs. Marchmont's neighbour in Lansdown, sixty, deaf in one " <>
+          "ear and a great collector of mediums, lecturers and grievances. She holds sittings in " <>
+          "her drawing-room on Tuesday evenings and regards them as her contribution to science. " <>
+          "She is kind, indiscreet, and repeats everything."
+    }
+  end
+
   @doc "The event everyone is writing about, as printed at the head of the story."
   @spec prologue() :: String.t()
   def prologue do
     """
-    On the evening of Monday the twelfth of October, 1891, a private séance was held
-    in the drawing-room of Mrs. Helena Marchmont at Cheltenham. Present were Mrs.
-    Marchmont, her companion, two neighbours of good family, and the medium, Miss
-    Clara Vane, lately of Bath. Dr. Arthur Pembroke of London, an old friend of the
-    late Mr. Marchmont, had declined his invitation and was not in the room.
+    In the autumn of 1891 the influenza was expected back, Mr. Parnell was newly dead, the
+    Theosophists were still in mourning for Madame Blavatsky, and in Cheltenham the new
+    theatre had opened with Mrs. Langtry. On the first Tuesday after Michaelmas, Mrs.
+    Lavinia Ashworth of Lansdown, who collects mediums as other women collect china, wrote
+    to her neighbour Mrs. Helena Marchmont, a widow eighteen months bereaved of her only
+    son, to say that she had engaged a young sensitive from Bath, a Miss Clara Vane, for
+    her Tuesday sitting, and that she would take it very kindly if Helena came.
 
-    After some minutes of the usual phenomena, Miss Vane, in trance, spoke in a voice
-    the company took to be that of Mrs. Marchmont's son, who had died some eighteen
-    months earlier. Among other things the voice said:
+    Helena had refused such invitations before. This time she went.
+
+    Present in Mrs. Ashworth's drawing-room on the evening of Tuesday the thirteenth of
+    October were Mrs. Ashworth, Mrs. Marchmont, her companion, two neighbours of good
+    family, and Miss Vane. Dr. Arthur Pembroke of London, an old friend of the late Mr.
+    Marchmont, had been asked and had declined.
+
+    After some minutes of the usual phenomena, Miss Vane, in trance, spoke in a voice the
+    company took to be that of Mrs. Marchmont's son. Among other things the voice said:
 
         "The blue ribbon was not burnt in Heaven."
 
-    Mrs. Marchmont was seen to go white and asked for the sitting to end. She has
-    since told nobody what the words meant to her. Within the week the matter had
-    reached Dr. Pembroke, and by some route nobody can quite trace, Mr. Julian Strake
+    Mrs. Marchmont was seen to go white and asked for the sitting to end. She has since
+    told nobody what the words meant to her, and she has not been able to decide whether
+    what she felt in that room was faith or its opposite. Within the week the matter had
+    reached Dr. Pembroke, and, by way of Mrs. Ashworth's dinner-table, Mr. Julian Strake
     of the London weeklies.
 
     What follows is their correspondence.
@@ -138,8 +170,10 @@ defmodule JidoDemo1.Cast do
           "hidden Masters, planes of existence, karma, spiritual evolution. She mentions Madame " <>
           "Blavatsky, lectures and 'Eastern wisdom' in the language of a late-Victorian Englishwoman.",
       knowledge_of_event:
-        "She was present; Dr. Pembroke was not, having declined her invitation. She alone " <>
-          "knows what the blue ribbon means. She has told nobody.",
+        "She went to the sitting at Mrs. Ashworth's on the thirteenth of October, against her " <>
+          "own judgement, because Mrs. Ashworth pressed her. Dr. Pembroke was not there, having " <>
+          "declined. She alone knows what the blue ribbon means. She has told nobody, and she " <>
+          "cannot decide whether what she felt was belief or the collapse of it.",
       belief_state: %{spiritualism: 6, theosophy: 5, skepticism: 2},
       relationships: %{
         arthur_pembroke: %{affection: 3, trust: 3, suspicion: 1, resentment: 2},
@@ -201,8 +235,10 @@ defmodule JidoDemo1.Cast do
           "imported jargon, yet not closed to psychical research: some phenomena may deserve " <>
           "investigation, but never a surrender of judgment.",
       knowledge_of_event:
-        "He was not present. He has heard an account of the séance and the phrase from Helena's " <>
-          "companion. He suspects the message came from prior knowledge, not from the dead.",
+        "He was not present. He has heard an account of the séance at Mrs. Ashworth's and the " <>
+          "phrase from Helena's companion. He suspects the message came from prior knowledge, " <>
+          "not from the dead, and he thinks Mrs. Ashworth a foolish woman who should not have " <>
+          "asked Helena.",
       belief_state: %{spiritualism: 2, theosophy: 0, skepticism: 8},
       relationships: %{
         helena_marchmont: %{affection: 5, trust: 3, suspicion: 1, resentment: 1},
@@ -266,9 +302,10 @@ defmodule JidoDemo1.Cast do
           "than mere mediumship. She borrows its language unevenly, sometimes sincerely and " <>
           "sometimes strategically.",
       knowledge_of_event:
-        "She was the medium. She spoke the phrase. She knows where it may have come from and " <>
-          "does not know whether anything else came through her that evening. Dr. Pembroke was " <>
-          "not in the room; she knows him only by reputation and one earlier, cold meeting.",
+        "She was the medium, engaged by Mrs. Ashworth for her Tuesday sitting. She spoke the " <>
+          "phrase. She knows where it may have come from and does not know whether anything else " <>
+          "came through her that evening. Dr. Pembroke was not in the room; she knows him only " <>
+          "by reputation and one earlier, cold meeting.",
       belief_state: %{spiritualism: 5, theosophy: 6, skepticism: 3},
       relationships: %{
         helena_marchmont: %{affection: 3, trust: 2, suspicion: 1, resentment: 1},
@@ -326,8 +363,8 @@ defmodule JidoDemo1.Cast do
         "Sceptical but aesthetically susceptible. Theosophy strikes him as fashionable, absurd, " <>
           "poetic and socially powerful; he may mock it in one paragraph and be seduced in the next.",
       knowledge_of_event:
-        "He was not present. He has heard a second-hand account, including the phrase, from a " <>
-          "neighbour who was in the room, and has already spoken of it to an editor.",
+        "He was not present. He dined at Mrs. Ashworth's the following week, heard her account " <>
+          "of the sitting, phrase and all, and has already spoken of it to an editor.",
       belief_state: %{spiritualism: 3, theosophy: 4, skepticism: 6},
       relationships: %{
         helena_marchmont: %{affection: 3, trust: 2, suspicion: 1, resentment: 0},

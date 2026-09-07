@@ -37,7 +37,7 @@ defmodule JidoDemo1.StoryTest do
            ]
 
     [first, second, third | _] = result.entries
-    assert first.origin == "the séance"
+    assert first.origin =~ "Mrs. Ashworth's invitation"
     assert first.appraisal.decision.action == :ignore
     assert second.origin =~ "unprompted"
     assert second.origin =~ "had not yet written or received"

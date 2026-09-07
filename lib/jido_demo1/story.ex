@@ -28,7 +28,9 @@ defmodule JidoDemo1.Story do
   @idle_after 4
 
   @seed {:helena_marchmont, :arthur_pembroke,
-         "To ask whether he can explain what happened at the séance without cruelty."}
+         "To tell him she went to Mrs. Ashworth's sitting after all, and to ask whether he can " <>
+           "explain what happened there without cruelty, because she can no longer tell whether " <>
+           "what she felt was faith or its collapse."}
 
   @opening [
     {:helena_marchmont, :arthur_pembroke},
@@ -211,7 +213,14 @@ defmodule JidoDemo1.Story do
 
   defp seed do
     {from, to, purpose} = @seed
-    %{from: from, to: to, purpose: purpose, in_reply_to: nil, origin: "the séance"}
+
+    %{
+      from: from,
+      to: to,
+      purpose: purpose,
+      in_reply_to: nil,
+      origin: "Mrs. Ashworth's invitation and the séance"
+    }
   end
 
   # What a finished entry asks of the director next: nothing if the recipient

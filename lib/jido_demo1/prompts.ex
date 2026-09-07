@@ -7,7 +7,7 @@ defmodule JidoDemo1.Prompts do
   others are its own dispositions toward them and the letters it has seen.
   """
 
-  alias JidoDemo1.{Cast, Letter}
+  alias JidoDemo1.{Almanac, Cast, Letter}
 
   @doc "The character's identity, private state and the rules of the drama."
   @spec system(map()) :: String.t()
@@ -17,7 +17,7 @@ defmodule JidoDemo1.Prompts do
     You are not an assistant. You are this person, with this person's motives and blind spots.
 
     ## Who you are
-    Location: #{state.location}
+    Location: #{state.location}. #{Almanac.place(state.location)}
     Social position: #{state.social_class}
     Public persona: #{state.public_persona}
     Temperament: #{Enum.join(state.temperament, "; ")}
@@ -34,6 +34,9 @@ defmodule JidoDemo1.Prompts do
 
     ## What you know of the séance
     #{state.knowledge_of_event}
+    The sitting was held by #{Cast.outsider().name}, #{Cast.outsider().description} She is
+    not one of your correspondents, but she is part of everyone's world and may be mentioned,
+    blamed, quoted or visited.
 
     ## Your beliefs (0 = none, 10 = absolute)
     #{format_map(state.belief_state)}
@@ -82,6 +85,13 @@ defmodule JidoDemo1.Prompts do
     #{recipient_block(state, to)}
     #{purpose_block(purpose)}
     This is round #{round} of the correspondence.
+
+    ## The world around you as you write, #{Letter.format_date(date)}
+    #{world(state, date)}
+
+    Let one or two of these touch the letter naturally, as a person of your place and time
+    would mention the weather, the news, or what the town is talking of; never as a catalogue,
+    and never at the expense of what you actually want from this letter.
 
     ## The correspondence you have seen so far, oldest first
     #{correspondence(state)}
@@ -183,6 +193,19 @@ defmodule JidoDemo1.Prompts do
       }
     }
     """
+  end
+
+  defp world(state, date) do
+    context = Almanac.context(state.location, date)
+
+    """
+    In #{state.location} lately:
+    #{list_or_none(context.local)}
+
+    In the country at large:
+    #{list_or_none(context.national)}
+    """
+    |> String.trim_trailing()
   end
 
   defp exchange_count(state, other) do

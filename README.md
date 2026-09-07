@@ -46,13 +46,22 @@ The director follows those decisions. Because the post does not wait for one con
 
 Every prompt includes the character's full memory of letters sent and received, and instructs them to write with that memory and never contradict what they have already written.
 
+## Time and place
+
+The four characters live through the same weeks of October and November 1891, but in different towns, so different things are happening around each of them. `JidoDemo1.Almanac` is a hand-curated list of what was really going on: standing descriptions of Cheltenham, London and Bath as a resident of 1891 would know them, dated local items for each town (the new theatre opening with Mrs. Langtry in Cheltenham, the Roman Great Bath lying open in Bath, the first fogs in London), and dated national news (Parnell's death, Blavatsky's followers in mourning, Tess in the Graphic, the influenza expected back). Each item is released into a character's prompt only once the story's calendar reaches its date, and only for that character's own town, with an instruction to let one or two touch the letter in passing rather than as a catalogue.
+
+The instigating incident is an invitation from a fifth character who has no agent of her own: Mrs. Lavinia Ashworth of Cheltenham, a collector of mediums, engages Miss Vane for her Tuesday sitting and presses Helena to come. Every character knows of Mrs. Ashworth and may mention, blame, or quote her, but nobody can write to her.
+
+Finished stories worth keeping are copied into `stories/`, which is committed; `letters/` holds every run and is ignored.
+
 ## How it is built
 
 | Module | Role |
 | --- | --- |
 | `JidoDemo1.Jido` | The Jido instance: registry plus supervisor for the agents. |
 | `JidoDemo1.Character` | The agent. Its schema is the whole private state of one character. Routes `letter.compose` and `letter.received` signals to actions. |
-| `JidoDemo1.Cast` | The four characters as initial state, plus the prologue. |
+| `JidoDemo1.Cast` | The four characters as initial state, the fifth character, and the prologue. |
+| `JidoDemo1.Almanac` | What was happening in each town and in the country, dated, released as the calendar advances. |
 | `JidoDemo1.Letter` | Letters as structured data. `public/1` strips the sender-only fields before delivery. |
 | `JidoDemo1.Actions.ComposeLetter` | Asks the model for a letter in character, remembers it, emits the public form to the recipient agent and the full form to the director. |
 | `JidoDemo1.Actions.ReceiveLetter` | Stores the letter, asks the model for a private appraisal and a decision (ignore, reply, write to a third party, write about something else), applies the deltas to relationship, belief and pressure state. |
