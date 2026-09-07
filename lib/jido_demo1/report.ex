@@ -48,8 +48,9 @@ defmodule JidoDemo1.Report do
   @spec debug_section([map()]) :: String.t()
   def debug_section(entries) do
     body =
-      Enum.map_join(entries, "\n", fn %{letter: letter, appraisal: appraisal} ->
+      Enum.map_join(entries, "\n", fn %{letter: letter, appraisal: appraisal} = entry ->
         recipient = Cast.short_name(letter.to)
+        origin = Map.get(entry, :origin, "")
 
         appraisal_lines =
           case appraisal do
@@ -62,12 +63,14 @@ defmodule JidoDemo1.Report do
                 #{recipient} toward #{Cast.short_name(letter.from)}: #{Appraisal.describe_deltas(a.relationship_deltas)}
                 #{recipient} beliefs: #{Appraisal.describe_deltas(a.belief_deltas)}
                 #{recipient} fear of exposure #{Appraisal.signed(a.fear_of_exposure)}, urgency #{Appraisal.signed(a.urgency)}, willingness to reveal #{Appraisal.signed(a.willingness_to_reveal)}
+                #{recipient} #{Appraisal.describe_decision(Map.get(a, :decision, %{action: :write, to: nil, purpose: nil}))}
               """
               |> String.trim_trailing()
           end
 
         """
         #{letter.id} #{Cast.short_name(letter.from)} -> #{recipient} [tone: #{letter.emotional_tone}]
+          why this letter: #{origin}
           concealed intent: #{letter.concealed_intent || "(none stated)"}
           visible claims: #{list(letter.visible_claims)}
           references: #{list(letter.references)}

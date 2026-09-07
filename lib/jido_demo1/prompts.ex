@@ -61,29 +61,45 @@ defmodule JidoDemo1.Prompts do
     """
   end
 
-  @doc "Instruction to compose a letter to `to`."
-  @spec compose(map(), Cast.id(), pos_integer(), Date.t()) :: String.t()
-  def compose(state, to, round, date) do
+  @doc """
+  Instruction to compose a letter.
+
+  Options: `:to` (nil lets the character choose), `:purpose` (what the
+  character resolved to do when it decided to write), `:in_reply_to`,
+  `:round`, `:date`.
+  """
+  @spec compose(map(), keyword()) :: String.t()
+  def compose(state, opts) do
+    to = Keyword.get(opts, :to)
+    purpose = Keyword.get(opts, :purpose)
+    round = Keyword.fetch!(opts, :round)
+    date = Keyword.fetch!(opts, :date)
+
     """
     TASK: COMPOSE a letter.
 
     Date: #{Letter.format_date(date)}. Written from #{state.location}.
-    You are writing to: #{Cast.name(to)}.
-    Your disposition toward them: #{Map.get(state.dispositions, to, "none recorded")}
+    #{recipient_block(state, to)}
+    #{purpose_block(purpose)}
     This is round #{round} of the correspondence.
 
     ## The correspondence you have seen so far, oldest first
     #{correspondence(state)}
 
-    Write the letter now, in the first person. Between 220 and 380 words in the body. Refer to
-    what you have received where it serves you; pass on, distort, or withhold as your character
-    would. Do not include the dateline, place, or your signature in the body; they are added
-    for you.
+    You remember every letter above. Write with that memory: answer, evade, or exploit what
+    you have been told, refer back to earlier letters where it serves you, and never contradict
+    what you yourself have already written. Pass on, distort, or withhold as your character
+    would. The letter need not be about the séance at all if something else presses on you.
+
+    Write the letter now, in the first person. Between 220 and 380 words in the body. Do not
+    include the dateline, place, valediction or your signature in the body; they are added
+    for you from the other fields.
 
     Return exactly this JSON object:
     {
+      "to": one of #{ids_json()},
       "salutation": "e.g. My dear Dr. Pembroke,",
-      "body": "the letter body, paragraphs separated by blank lines",
+      "body": "the letter body, paragraphs separated by \\n\\n",
       "valediction": "e.g. I remain, yours very sincerely,",
       "emotional_tone": one of "restrained", "pleading", "accusatory", "flirtatious", "evasive", "confessional",
       "concealed_intent": "one sentence: what you are really trying to achieve with this letter",
@@ -94,22 +110,62 @@ defmodule JidoDemo1.Prompts do
     """
   end
 
-  @doc "Instruction to appraise a letter just received and report how it moved you."
+  defp recipient_block(state, nil) do
+    others =
+      Enum.map_join(Cast.ids() -- [state.character_id], "\n", fn id ->
+        "- #{id}: #{Cast.name(id)}. Your disposition: #{Map.get(state.dispositions, id, "none recorded")}"
+      end)
+
+    """
+    Nobody has told you whom to write to. Decide for yourself, from your own feelings and
+    memory, which of these people you write to today, and put their id in the "to" field:
+    #{others}
+    """
+  end
+
+  defp recipient_block(state, to) do
+    """
+    You are writing to: #{Cast.name(to)} (id #{to}).
+    Your disposition toward them: #{Map.get(state.dispositions, to, "none recorded")}
+    """
+  end
+
+  defp purpose_block(nil), do: ""
+  defp purpose_block(purpose), do: "Your purpose in writing, as you resolved it: #{purpose}\n"
+
+  defp ids_json, do: Cast.ids() |> Enum.map(&"\"#{&1}\"") |> Enum.join(", ")
+
+  @doc "Instruction to appraise a letter just received, report how it moved you, and decide what to do."
   @spec appraise(map(), Letter.t()) :: String.t()
   def appraise(state, %Letter{} = letter) do
     """
-    TASK: APPRAISE a letter you have just received.
+    TASK: APPRAISE a letter you have just received, and decide what you will do about it.
 
-    From: #{Cast.name(letter.from)}, dated #{Letter.format_date(letter.date)}.
+    From: #{Cast.name(letter.from)} (id #{letter.from}), dated #{Letter.format_date(letter.date)}.
     Your disposition toward them: #{Map.get(state.dispositions, letter.from, "none recorded")}
 
     ---
     #{Letter.to_text(letter)}
     ---
 
-    Read it as yourself. Decide privately what it does to your trust, suspicion, affection and
-    resentment toward the writer, to your beliefs, and to your own fear, urgency and readiness
-    to reveal what you are hiding. Every delta must be an integer from -2 to 2.
+    ## Everything you have received or sent before this, oldest first
+    #{correspondence(state, letter)}
+
+    Read the new letter as yourself, remembering all of the above. Decide privately what it does
+    to your trust, suspicion, affection and resentment toward the writer, to your beliefs, and to
+    your own fear, urgency and readiness to reveal what you are hiding. Every delta must be an
+    integer from -2 to 2.
+
+    Then decide what you will do. You are under no obligation to answer, and an immediate reply
+    is only one of your choices. #{exchange_count(state, letter.from)} Before replying, ask
+    whether somebody else ought to hear of this first, whether the writer would be better
+    taught by silence, and whether another matter presses on you more. Your choices:
+    - "ignore": leave the letter unanswered. Silence is itself an answer, and a proud, frightened,
+      or busy person often gives it.
+    - "write" to the sender: reply, whether to answer, rebuff, flatter, or deceive them.
+    - "write" to somebody else about this letter: complain of an impertinence, confide, seek
+      advice, confess, warn, or tip off a collaborator.
+    - "write" to anybody about something else entirely, if that presses on you more.
 
     Return exactly this JSON object:
     {
@@ -119,16 +175,40 @@ defmodule JidoDemo1.Prompts do
       "fear_of_exposure": 0,
       "urgency": 0,
       "willingness_to_reveal": 0,
-      "new_pressure": "one short sentence naming the new pressure this letter puts on you, or empty"
+      "new_pressure": "one short sentence naming the new pressure this letter puts on you, or empty",
+      "decision": {
+        "action": "write" or "ignore",
+        "to": one of #{ids_json()} or null when ignoring,
+        "purpose": "one sentence: what the letter you will write is for, or why you stay silent"
+      }
     }
     """
+  end
+
+  defp exchange_count(state, other) do
+    sent = Enum.count(state.public_memory, &(Letter.to_struct(&1).to == other))
+    received = Enum.count(state.public_memory, &(Letter.to_struct(&1).from == other))
+
+    "You have already written to #{Cast.short_name(other)} #{times(sent)} and had " <>
+      "#{times(received)} from them."
+  end
+
+  defp times(0), do: "no letters"
+  defp times(1), do: "once"
+  defp times(n), do: "#{n} times"
+
+  defp correspondence(state, %Letter{id: id}) do
+    correspondence(%{
+      state
+      | public_memory: Enum.reject(state.public_memory, &(Letter.to_struct(&1).id == id))
+    })
   end
 
   defp correspondence(%{public_memory: []}), do: "(none yet)"
 
   defp correspondence(state) do
     state.public_memory
-    |> Enum.take(-8)
+    |> Enum.take(-10)
     |> Enum.map_join("\n\n", fn letter ->
       letter = Letter.to_struct(letter)
 

@@ -16,12 +16,16 @@ defmodule JidoDemo1.Appraisal do
           fear_of_exposure: integer(),
           urgency: integer(),
           willingness_to_reveal: integer(),
-          new_pressure: String.t() | nil
+          new_pressure: String.t() | nil,
+          decision: decision()
         }
 
+  @typedoc "What the character resolved to do on reading the letter."
+  @type decision :: %{action: :write | :ignore, to: atom() | nil, purpose: String.t() | nil}
+
   @doc "Build an appraisal from the model's JSON."
-  @spec from_model(map(), atom(), String.t()) :: t()
-  def from_model(json, from, letter_id) do
+  @spec from_model(map(), atom(), String.t(), atom()) :: t()
+  def from_model(json, from, letter_id, self_id) do
     %{
       from: from,
       letter_id: letter_id,
@@ -31,9 +35,58 @@ defmodule JidoDemo1.Appraisal do
       fear_of_exposure: clamp(json["fear_of_exposure"]),
       urgency: clamp(json["urgency"]),
       willingness_to_reveal: clamp(json["willingness_to_reveal"]),
-      new_pressure: blank_to_nil(json["new_pressure"])
+      new_pressure: blank_to_nil(json["new_pressure"]),
+      decision: decision(json["decision"], from, self_id)
     }
   end
+
+  @doc "Parse the decision block; anything unrecognised becomes a decision to write, recipient unchosen."
+  @spec decision(term(), atom(), atom()) :: decision()
+  def decision(%{} = json, from, self_id) do
+    action =
+      if to_string(json["action"] || "") |> String.downcase() == "ignore",
+        do: :ignore,
+        else: :write
+
+    to = recipient(json["to"], from, self_id)
+    purpose = blank_to_nil(json["purpose"])
+
+    case action do
+      :ignore -> %{action: :ignore, to: nil, purpose: purpose}
+      :write -> %{action: :write, to: to, purpose: purpose}
+    end
+  end
+
+  def decision(_, _from, _self_id), do: %{action: :write, to: nil, purpose: nil}
+
+  @doc "A short sentence describing the decision."
+  @spec describe_decision(decision()) :: String.t()
+  def describe_decision(%{action: :ignore, purpose: purpose}),
+    do: "leaves it unanswered" <> reason(purpose)
+
+  def describe_decision(%{action: :write, to: nil, purpose: purpose}),
+    do: "resolves to write, recipient undecided" <> reason(purpose)
+
+  def describe_decision(%{action: :write, to: to, purpose: purpose}),
+    do: "resolves to write to #{JidoDemo1.Cast.short_name(to)}" <> reason(purpose)
+
+  defp reason(nil), do: ""
+  defp reason(text), do: ": #{text}"
+
+  defp recipient(value, _from, self_id) when is_binary(value) do
+    ids = JidoDemo1.Cast.ids()
+
+    case Enum.find(ids, &(Atom.to_string(&1) == String.trim(value))) do
+      nil -> nil
+      ^self_id -> nil
+      id -> id
+    end
+  end
+
+  defp recipient(value, from, self_id) when is_atom(value) and not is_nil(value),
+    do: recipient(Atom.to_string(value), from, self_id)
+
+  defp recipient(_, _from, _self_id), do: nil
 
   @doc "Apply the appraisal to a character's state map, returning the changed fields."
   @spec apply(t(), map()) :: map()

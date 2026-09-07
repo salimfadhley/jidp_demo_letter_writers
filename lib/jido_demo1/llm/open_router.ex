@@ -19,7 +19,7 @@ defmodule JidoDemo1.LLM.OpenRouter do
         model: Keyword.get(opts, :model, default_model()),
         messages: [%{role: "system", content: system}, %{role: "user", content: user}],
         temperature: Keyword.get(opts, :temperature, 0.9),
-        max_tokens: Keyword.get(opts, :max_tokens, 1500)
+        max_tokens: Keyword.get(opts, :max_tokens, 4000)
       }
 
       request =
@@ -38,7 +38,20 @@ defmodule JidoDemo1.LLM.OpenRouter do
 
       case Req.post(request) do
         {:ok, %Req.Response{status: 200, body: %{"choices" => [choice | _]}}} ->
-          {:ok, choice |> get_in(["message", "content"]) |> to_string() |> String.trim()}
+          content = choice |> get_in(["message", "content"]) |> to_string() |> String.trim()
+
+          case {choice["finish_reason"], content} do
+            {"length", _} ->
+              Logger.error("OpenRouter response was cut off at the token limit")
+              {:error, {:truncated, content}}
+
+            {_, ""} ->
+              Logger.error("OpenRouter returned an empty message: #{inspect(choice)}")
+              {:error, {:empty_response, choice}}
+
+            _ ->
+              {:ok, content}
+          end
 
         {:ok, %Req.Response{status: status, body: body}} ->
           Logger.error("OpenRouter returned HTTP #{status}: #{inspect(body)}")

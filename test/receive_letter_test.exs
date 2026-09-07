@@ -44,6 +44,16 @@ defmodule JidoDemo1.ReceiveLetterTest do
     assert pressure =~ "Mrs. Marchmont"
   end
 
+  test "the appraisal carries the character's decision about what to do next", ctx do
+    {:ok, changes, _} = ReceiveLetter.run(%{letter: ctx.letter}, %{state: ctx.state})
+    # The stub has Pembroke ignore whatever Helena sends him.
+    assert changes.last_appraisal.decision == %{
+             action: :ignore,
+             to: nil,
+             purpose: "He will not dignify it."
+           }
+  end
+
   test "the private note records the appraisal", ctx do
     {:ok, changes, _} = ReceiveLetter.run(%{letter: ctx.letter}, %{state: ctx.state})
     assert [note] = changes.private_memory

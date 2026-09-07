@@ -15,13 +15,62 @@ defmodule JidoDemo1.StoryTest do
     writers = result.entries |> Enum.map(& &1.letter.from) |> Enum.uniq()
     assert Enum.sort(writers) == Enum.sort(Cast.ids())
 
-    scripted = result.entries |> Enum.take(8) |> Enum.map(&{&1.letter.from, &1.letter.to})
-    assert scripted == Story.opening()
-
     assert Enum.all?(result.entries, &(&1.appraisal != nil))
     assert result.report =~ "THE ETHERIDGE CIRCLE, 1891"
     assert result.report =~ "DEBUG: PRIVATE STATE CHANGES"
     assert result.report =~ "SUMMARY: HOW THE CIRCLE SHIFTED"
+  end
+
+  test "the characters' decisions drive who writes next" do
+    {:ok, result} = Story.run(Keyword.put(@opts, :letters, 5))
+    pairs = Enum.map(result.entries, &{&1.letter.from, &1.letter.to})
+
+    # Seed: Helena to Pembroke. Pembroke ignores her, so Clara (next in cast order) is
+    # invited and picks Strake. Strake decides to write to Pembroke, who decides to warn
+    # Helena, who takes it to Clara. The stub's fixed choices, but the director follows them.
+    assert pairs == [
+             {:helena_marchmont, :arthur_pembroke},
+             {:clara_vane, :julian_strake},
+             {:julian_strake, :arthur_pembroke},
+             {:arthur_pembroke, :helena_marchmont},
+             {:helena_marchmont, :clara_vane}
+           ]
+
+    [first, second, third | _] = result.entries
+    assert first.origin == "the séance"
+    assert first.appraisal.decision.action == :ignore
+    assert second.origin =~ "unprompted"
+    assert second.origin =~ "had not yet written or received"
+
+    assert second.appraisal.decision == %{
+             action: :write,
+             to: :arthur_pembroke,
+             purpose: "To provoke the doctor."
+           }
+
+    assert third.origin =~ "decision on reading letter-002"
+  end
+
+  test "a scripted opening overrides decisions until it runs out" do
+    {:ok, result} = Story.run(Keyword.merge(@opts, letters: 10, opening: true))
+    pairs = Enum.map(result.entries, &{&1.letter.from, &1.letter.to})
+
+    assert Enum.take(pairs, 8) == Story.opening()
+    assert Enum.all?(Enum.take(result.entries, 8), &(&1.origin == "scripted opening"))
+
+    # Decisions made during the script were queued, newest per character replacing older:
+    # Clara's on letter 4, Strake's on letter 5, Helena's on letter 6, Pembroke's on letter 7.
+    assert Enum.at(pairs, 8) == {:clara_vane, :julian_strake}
+    assert Enum.at(result.entries, 8).origin =~ "decision on reading letter-004"
+    assert Enum.at(pairs, 9) == {:helena_marchmont, :clara_vane}
+    assert Enum.at(result.entries, 9).origin =~ "decision on reading letter-006"
+  end
+
+  test "a character left out of the correspondence is invited to write" do
+    {:ok, result} = Story.run(Keyword.put(@opts, :letters, 8))
+    writers_and_readers = Enum.flat_map(result.entries, &[&1.letter.from, &1.letter.to])
+    assert Enum.sort(Enum.uniq(writers_and_readers)) == Enum.sort(Cast.ids())
+    assert Enum.any?(result.entries, &(&1.origin =~ "unprompted"))
   end
 
   test "agents never receive another agent's concealed intent" do
@@ -37,10 +86,11 @@ defmodule JidoDemo1.StoryTest do
 
   test "relationships move as a result of correspondence" do
     {:ok, result} = Story.run(Keyword.put(@opts, :letters, 4))
-    helena_before = result.initial.helena_marchmont.relationships.arthur_pembroke
-    helena_after = result.final.helena_marchmont.relationships.arthur_pembroke
-    assert helena_after.trust < helena_before.trust
-    assert helena_after.suspicion > helena_before.suspicion
+    # Pembroke receives the seed letter from Helena.
+    before = result.initial.arthur_pembroke.relationships.helena_marchmont
+    after_ = result.final.arthur_pembroke.relationships.helena_marchmont
+    assert after_.trust < before.trust
+    assert after_.suspicion > before.suspicion
   end
 
   test "two runs with the stub are identical" do

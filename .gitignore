@@ -29,3 +29,10 @@ jido_demo1-*.tar
 
 # Generated fiction.
 letters/
+
+# agent-inbox: identity and possibly a device token. Never commit.
+agent-inbox.toml
+
+# Agent mailbox runtime state and local Claude Code hooks.
+.agent-mailbox-wake.lock
+.claude/

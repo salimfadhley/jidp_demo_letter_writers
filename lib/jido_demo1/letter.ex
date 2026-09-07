@@ -101,17 +101,29 @@ defmodule JidoDemo1.Letter do
   @doc "Render the letter as it would appear on the page."
   @spec to_text(t()) :: String.t()
   def to_text(%__MODULE__{} = letter) do
+    valediction = String.trim(letter.valediction)
+
     """
     #{Cast.location(letter.from)}
     #{format_date(letter.date)}
 
     #{letter.salutation}
 
-    #{String.trim(letter.body)}
+    #{letter.body |> String.trim() |> without_trailing(valediction)}
 
-    #{String.trim(letter.valediction)}
+    #{valediction}
     #{Cast.signature(letter.from)}
     """
+  end
+
+  # Models sometimes end the body with the valediction as well as returning it
+  # separately; print it once.
+  defp without_trailing(body, valediction) do
+    if valediction != "" and String.ends_with?(body, valediction) do
+      body |> String.trim_trailing(valediction) |> String.trim()
+    else
+      body
+    end
   end
 
   @doc "A date in the style of the period, e.g. `14 October 1891`."

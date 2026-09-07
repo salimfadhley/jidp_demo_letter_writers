@@ -5,9 +5,9 @@ defmodule Mix.Tasks.Letters do
   Runs one story, prints the letters as they arrive, then the debug and
   summary sections, and writes the whole report under `letters/`.
 
-      mix letters                    # ten letters: scripted opening, then free choice
+      mix letters                    # ten letters; after the first, the characters decide
       mix letters --letters 12
-      mix letters --no-opening       # characters choose recipients from the start
+      mix letters --opening          # force the scripted eight-letter opening first
       mix letters --stub             # deterministic canned model, no network
       mix letters --out story.txt
   """
@@ -39,8 +39,11 @@ defmodule Mix.Tasks.Letters do
         Mix.shell().info(JidoDemo1.Report.summary_section(result.initial, result.final))
         if result.path, do: Mix.shell().info("Report written to #{Path.expand(result.path)}")
 
-      {:error, reason} ->
-        Mix.raise("Story failed: #{inspect(reason)}")
+      {:error, reason, partial} ->
+        if partial.path,
+          do: Mix.shell().error("Partial report written to #{Path.expand(partial.path)}")
+
+        Mix.raise("Story failed after #{length(partial.entries)} letters: #{inspect(reason)}")
     end
   end
 end

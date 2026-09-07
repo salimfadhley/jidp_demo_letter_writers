@@ -12,6 +12,11 @@ defmodule JidoDemo1.Actions.ComposeLetter do
     description: "Compose a letter to a chosen or given recipient and dispatch it",
     schema: [
       to: [type: {:or, [:atom, nil]}, doc: "Recipient; when absent the character chooses"],
+      purpose: [
+        type: {:or, [:string, nil]},
+        doc: "What the character resolved this letter is for"
+      ],
+      in_reply_to: [type: {:or, [:string, nil]}, doc: "Id of the letter that prompted this one"],
       seq: [type: :pos_integer, required: true, doc: "Position in the whole correspondence"],
       round: [type: :pos_integer, required: true],
       date: [type: :string, required: true, doc: "ISO 8601 date of writing"]
@@ -26,17 +31,22 @@ defmodule JidoDemo1.Actions.ComposeLetter do
 
   @impl true
   def run(params, %{state: state}) do
-    to = Map.get(params, :to) || state.next_recipient || ChooseCorrespondent.choose(state)
+    requested = Map.get(params, :to) || state.next_recipient
+    purpose = Map.get(params, :purpose)
     date = Date.from_iso8601!(params.date)
     me = state.character_id
 
-    Logger.info("#{state.public_name} composes letter #{params.seq} to #{Cast.name(to)}")
+    Logger.info("#{state.public_name} composes letter #{params.seq}#{describe(requested)}")
 
     system = Prompts.system(state)
-    user = Prompts.compose(state, to, params.round, date)
 
-    case LLM.complete_json(system, user, kind: :compose, from: me, to: to) do
+    user =
+      Prompts.compose(state, to: requested, purpose: purpose, round: params.round, date: date)
+
+    case LLM.complete_json(system, user, kind: :compose, from: me, to: requested) do
       {:ok, json} ->
+        to = requested || chosen(json, state) || ChooseCorrespondent.choose(state)
+
         letter =
           Letter.from_model(json,
             id: "letter-#{String.pad_leading(Integer.to_string(params.seq), 3, "0")}",
@@ -62,6 +72,23 @@ defmodule JidoDemo1.Actions.ComposeLetter do
       {:error, reason} ->
         Logger.error("#{state.public_name} could not compose a letter: #{inspect(reason)}")
         {:ok, %{}, failure(state, params.seq, reason)}
+    end
+  end
+
+  defp describe(nil), do: ", recipient of their own choosing"
+  defp describe(to), do: " to #{Cast.name(to)}"
+
+  # The recipient the model named, if it is a real character other than the writer.
+  defp chosen(json, state) do
+    case json["to"] do
+      value when is_binary(value) ->
+        Enum.find(
+          Cast.ids(),
+          &(Atom.to_string(&1) == String.trim(value) and &1 != state.character_id)
+        )
+
+      _ ->
+        nil
     end
   end
 

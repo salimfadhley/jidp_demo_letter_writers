@@ -47,6 +47,12 @@ defmodule JidoDemo1.LetterTest do
     assert String.ends_with?(String.trim(text), "Helena Marchmont")
   end
 
+  test "a valediction repeated at the end of the body is printed once" do
+    attrs = Map.put(@attrs, :body, "I hardly know how to begin.\n\nI remain, yours sincerely,")
+    text = attrs |> Letter.new!() |> Letter.to_text()
+    assert length(String.split(text, "I remain, yours sincerely,")) == 2
+  end
+
   test "round-trips through a plain map with string keys" do
     map =
       @attrs |> Letter.new!() |> Map.from_struct() |> Map.new(fn {k, v} -> {to_string(k), v} end)

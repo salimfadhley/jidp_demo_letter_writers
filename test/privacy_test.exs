@@ -19,7 +19,7 @@ defmodule JidoDemo1.PrivacyTest do
 
   test "the compose prompt only draws on the character's own memory" do
     helena = Cast.initial_state(:helena_marchmont)
-    prompt = Prompts.compose(helena, :clara_vane, 1, ~D[1891-10-14])
+    prompt = Prompts.compose(helena, to: :clara_vane, round: 1, date: ~D[1891-10-14])
     refute prompt =~ Cast.initial_state(:clara_vane).guilty_secret
     assert prompt =~ "(none yet)"
   end

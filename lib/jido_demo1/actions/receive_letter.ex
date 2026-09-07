@@ -1,7 +1,9 @@
 defmodule JidoDemo1.Actions.ReceiveLetter do
   @moduledoc """
-  Take in a letter: remember it, react to it privately, and adjust relationship,
-  belief and pressure state accordingly.
+  Take in a letter: remember it, react to it privately, adjust relationship,
+  belief and pressure state accordingly, and decide what to do about it:
+  ignore it, reply, write to a third party about it, or write about
+  something else. The decision travels to the director inside the appraisal.
 
   The letter is stored in public memory before the model is consulted, so a
   failed appraisal never loses the correspondence itself.
@@ -36,7 +38,7 @@ defmodule JidoDemo1.Actions.ReceiveLetter do
 
     case LLM.complete_json(system, user, kind: :appraise, from: letter.from, to: me) do
       {:ok, json} ->
-        appraisal = Appraisal.from_model(json, letter.from, letter.id)
+        appraisal = Appraisal.from_model(json, letter.from, letter.id, me)
         changes = Appraisal.apply(appraisal, state_with_letter)
 
         new_state =
