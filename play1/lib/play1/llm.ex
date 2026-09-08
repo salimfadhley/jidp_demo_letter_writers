@@ -22,23 +22,38 @@ defmodule Play1.LLM do
   """
   @spec complete_json(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def complete_json(system, user, opts \\ []) do
-    retries = Keyword.get(opts, :json_retries, 1)
+    retries = Keyword.get(opts, :json_retries, 2)
 
-    with {:ok, text} <- complete(system, user, opts) do
-      case decode_json(text) do
-        {:ok, map} ->
-          {:ok, map}
+    case complete(system, user, opts) do
+      {:ok, text} ->
+        case decode_json(text) do
+          {:ok, map} ->
+            {:ok, map}
 
-        {:error, _} = error when retries <= 0 ->
-          error
+          {:error, _} = error when retries <= 0 ->
+            error
 
-        {:error, reason} ->
-          Logger.warning(
-            "Model returned invalid JSON, asking again: #{inspect(reason, limit: 5)}"
-          )
+          {:error, reason} ->
+            Logger.warning(
+              "Model returned invalid JSON, asking again: #{inspect(reason, limit: 5)}"
+            )
 
-          complete_json(system, user, Keyword.put(opts, :json_retries, retries - 1))
-      end
+            complete_json(system, user, Keyword.put(opts, :json_retries, retries - 1))
+        end
+
+      # A reply cut off at the token limit, or empty, is transient: ask again with more room.
+      {:error, {kind, _}} when kind in [:truncated, :empty_response] and retries > 0 ->
+        bigger = Keyword.get(opts, :max_tokens, 4000) * 2
+        Logger.warning("Model reply was #{kind}; asking again with #{bigger} tokens")
+
+        complete_json(
+          system,
+          user,
+          opts |> Keyword.put(:json_retries, retries - 1) |> Keyword.put(:max_tokens, bigger)
+        )
+
+      {:error, _} = error ->
+        error
     end
   end
 
