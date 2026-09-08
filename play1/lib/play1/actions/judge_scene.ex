@@ -12,7 +12,7 @@ defmodule Play1.Actions.JudgeScene do
       plan: [type: :any, required: true],
       transcript: [type: {:list, :string}, required: true],
       beats: [type: :non_neg_integer, required: true],
-      min_beats: [type: :pos_integer, default: 6],
+      min_beats: [type: :pos_integer, default: 8],
       forced: [
         type: :boolean,
         default: false,

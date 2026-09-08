@@ -17,7 +17,9 @@ defmodule Play1.Stage do
   alias Jido.Signal
   alias Play1.{Beat, Cast, Character, Director, Plan, Report, Room}
 
-  @min_beats 6
+  @min_beats 8
+  # An arrival must be given this many beats before the scene may end.
+  @settle_after_arrival 3
 
   @type entry ::
           {:scene, Plan.t()}
@@ -133,7 +135,8 @@ defmodule Play1.Stage do
         first: plan.opening_line_by,
         spotlight: spotlight,
         lit: [spotlight],
-        revealed: []
+        revealed: [],
+        last_arrival: nil
       }
 
       stage =
@@ -171,7 +174,13 @@ defmodule Play1.Stage do
 
             case judge(stage, sc, false) do
               {:ok, %{decision: :end} = verdict} ->
-                close(stage, sc, verdict)
+                if settled?(sc) do
+                  close(stage, sc, verdict)
+                else
+                  # Too soon after an arrival: keep going, but honour the spotlight.
+                  {stage, sc} = move_spotlight(stage, sc, verdict.spotlight)
+                  beats(stage, sc)
+                end
 
               {:ok, verdict} ->
                 sc =
@@ -191,6 +200,9 @@ defmodule Play1.Stage do
         end
     end
   end
+
+  defp settled?(%{last_arrival: nil}), do: true
+  defp settled?(%{last_arrival: at, beats: beats}), do: beats - at >= @settle_after_arrival
 
   defp move_spotlight(stage, %{spotlight: same} = sc, same), do: {stage, sc}
   defp move_spotlight(stage, sc, nil), do: {stage, sc}
