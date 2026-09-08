@@ -221,13 +221,23 @@ defmodule Play1.Stage do
     end
   end
 
-  defp close(stage, sc, verdict) do
-    text = verdict.closing || "A silence, which nobody moves to fill."
+  # The director decided to end the scene. If it forgot the closing direction,
+  # ask once more, forced, so the scene ends on a real beat and not a shrug.
+  defp close(stage, sc, %{closing: nil} = verdict) do
+    case judge(stage, sc, true) do
+      {:ok, %{closing: closing} = again} when is_binary(closing) ->
+        close(stage, sc, %{again | summary: again.summary || verdict.summary})
 
+      _ ->
+        close(stage, sc, %{verdict | closing: "A silence, which nobody moves to fill."})
+    end
+  end
+
+  defp close(stage, sc, verdict) do
     stage =
       stage
-      |> Map.update!(:entries, &[{:closing, sc.plan.number, text} | &1])
-      |> maybe_print({:closing, sc.plan.number, text})
+      |> Map.update!(:entries, &[{:closing, sc.plan.number, verdict.closing} | &1])
+      |> maybe_print({:closing, sc.plan.number, verdict.closing})
 
     {:ok, stage, sc}
   end
