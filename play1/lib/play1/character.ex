@@ -29,6 +29,7 @@ defmodule Play1.Character do
       beats_spoken: [type: :non_neg_integer, default: 0],
       last_game_move: [type: {:or, [:atom, nil]}, default: nil],
       rung: [type: :non_neg_integer, default: 0],
+      mood: [type: {:or, [:map, nil]}, default: nil],
       observer: [type: {:or, [:pid, nil]}, default: nil]
     ],
     signal_routes: [

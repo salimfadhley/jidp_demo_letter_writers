@@ -22,6 +22,7 @@ defmodule Play1.Beat do
                 game_move: :rest,
                 rung: 0,
                 inner: nil,
+                feeling: nil,
                 move: nil,
                 relationship: nil
               ]
@@ -41,6 +42,7 @@ defmodule Play1.Beat do
           game_move: :play | :heighten | :explore | :rest,
           rung: non_neg_integer(),
           inner: String.t() | nil,
+          feeling: %{emotion: String.t(), intensity: 1..5, about: String.t() | nil} | nil,
           move: move() | nil,
           relationship: map() | nil
         }
@@ -81,6 +83,7 @@ defmodule Play1.Beat do
       game_move: game_move(json["game_move"]),
       rung: Keyword.get(fields, :rung, 0),
       inner: blank_to_nil(json["inner"]),
+      feeling: feeling(json["feeling"]),
       move: parse_move(json["move"], speaker),
       relationship: relationship(json["relationship"], speaker)
     )
@@ -153,6 +156,28 @@ defmodule Play1.Beat do
       _ -> :rest
     end
   end
+
+  @doc "The feeling the speaker spoke from, as the model reported it."
+  @spec feeling(term()) :: map() | nil
+  def feeling(%{} = json) do
+    case blank_to_nil(json["emotion"]) do
+      nil ->
+        nil
+
+      emotion ->
+        %{
+          emotion: String.downcase(emotion),
+          intensity: json["intensity"] |> intensity(),
+          about: blank_to_nil(json["about"])
+        }
+    end
+  end
+
+  def feeling(_), do: nil
+
+  defp intensity(v) when is_integer(v), do: v |> max(1) |> min(5)
+  defp intensity(v) when is_float(v), do: v |> round() |> intensity()
+  defp intensity(_), do: 3
 
   defp relationship(%{} = json, speaker) do
     case Cast.parse_id(json["toward"], except: speaker) do

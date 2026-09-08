@@ -120,7 +120,7 @@ defmodule Play1.Prompts.Director do
       "thing_shown": true if the character in the spotlight has now plainly shown their point of view, else false,
       "spotlight": "id of who has the attention for the next beats",
       "reason": "one sentence, covering the spotlight if it moves",
-      "closing": "if ending: the stage direction the scene ends on, a real dramatic beat (a door, a look held, a glass set down, a line left hanging), present tense, at most 30 words, naming characters in CAPITALS; otherwise null",
+      "closing": "if ending: the stage direction the scene ends on, a real dramatic beat (a door, a look held, a glass set down, a line left hanging), present tense, at most 30 words, naming characters in CAPITALS, and containing no dialogue, since the actors alone speak; otherwise null",
       "summary": "if ending: two sentences for your own record of what this scene changed between these people; otherwise null"
     }
     """

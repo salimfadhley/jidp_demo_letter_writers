@@ -56,6 +56,7 @@ defmodule Play1.Actions.TakeBeat do
           beats_spoken: state.beats_spoken + 1,
           last_game_move: beat.game_move,
           rung: beat.rung,
+          mood: beat.feeling || state.mood,
           relationships: apply_relationship(state.relationships, beat.relationship)
         }
 

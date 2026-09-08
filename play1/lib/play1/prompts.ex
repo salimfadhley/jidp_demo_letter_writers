@@ -87,6 +87,19 @@ defmodule Play1.Prompts do
     once. Most beats should be play or rest; heighten seldom, and only when the room has earned
     it. The game must always be grounded: you believe you are behaving reasonably.
 
+    ## What you feel now
+    #{mood(state)}
+
+    ## Feeling first
+    Everything spoken of in this house is unreal: spirits, ribbons, Mahatmas, the whole
+    evening. The one real thing in the room is what you feel about it. Every beat you take
+    begins from a feeling produced by what you last heard or saw: wistful, angry, nostalgic,
+    circumspect, suspicious, intrigued, tender, wounded, amused, envious, afraid, relieved,
+    ashamed, jealous, grateful, bored, or whatever it truly is. Name it to yourself first,
+    and how strongly. Then let the line carry it: in the words you choose, what you answer
+    and what you leave unanswered, never by announcing the feeling. A person who has heard
+    something and feels nothing about it is not a person.
+
     ## Your beliefs (0 to 10)
     #{format_map(state.belief_state)}
 
@@ -108,8 +121,8 @@ defmodule Play1.Prompts do
        modern idiom or therapy language.
     2. This is a play. Each beat is one line of dialogue of at most 55 words. Add a stage action
        only when it tells the audience something the line does not: a look, a refusal, a move
-       ("sets down her glass", "does not answer"). Most lines need none. When you do, present
-       tense, third person, at most 18 words.
+       ("sets down her glass", "does not answer"). Most lines need none: no more than one line
+       in three. When you do, present tense, third person, at most 18 words.
     3. Speak only to people standing with you. You know only what you have yourself witnessed.
     4. Let tension move: every beat should want something, hide something, or change something.
     5. Answer only with a single JSON object, with no text before or after it.
@@ -154,6 +167,10 @@ defmodule Play1.Prompts do
     ## What you have witnessed so far, oldest first
     #{witnessed(state)}
 
+    ## What you heard since you last spoke
+    #{heard_since(state)}
+    What did it make you feel? Decide that before anything else, and speak from it.
+
     ## The spotlight
     #{spotlight(state, params)}
 
@@ -172,11 +189,35 @@ defmodule Play1.Prompts do
       "direction": null, or one stage action only if it matters: present tense, third person, at most 18 words,
       "addressed_to": one of the ids standing with you, or null,
       "game_move": "play" or "heighten" or "explore" or "rest",
+      "feeling": {"emotion": "one word for what you feel now, in response to what you last heard", "intensity": 1 to 5, "about": "what it was that moved you, in a few words"},
       "inner": "one sentence of private thought, in your own voice",
       "move": null or {"to": "withdraw" or "leave"},
       "relationship": null or {"toward": "<id>", "trust": 0, "suspicion": 0, "affection": 0, "resentment": 0} with integers from -2 to 2
     }
     """
+  end
+
+  defp mood(%{mood: nil}), do: "Nothing in particular yet; the evening has not touched you."
+
+  defp mood(%{mood: %{emotion: e, intensity: i} = m}),
+    do: "#{String.capitalize(e)}, #{i} of 5#{if m[:about], do: ", about " <> m[:about], else: ""}. It colours what you say next."
+
+  # The beats heard since this character's own last beat, or the last few if they have not spoken.
+  defp heard_since(state) do
+    me = state.character_id
+
+    recent =
+      state.witnessed
+      |> Enum.map(&Beat.to_struct/1)
+      |> Enum.reverse()
+      |> Enum.take_while(&(&1.speaker != me))
+      |> Enum.reverse()
+      |> Enum.take(-6)
+
+    case recent do
+      [] -> "(nothing since your own last words)"
+      beats -> Enum.map_join(beats, "\n", &"#{Cast.stage_name(&1.speaker)}: #{&1.line || "(" <> (&1.direction || "silence") <> ")"}")
+    end
   end
 
   defp spotlight(%{character_id: me}, params) do

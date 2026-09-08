@@ -112,6 +112,7 @@ defmodule Play1.Report do
 
         """
         #{b.seq} #{Cast.short_name(b.speaker)} in #{b.place} with #{if with_ == "", do: "nobody", else: with_} [#{b.kind}; game: #{b.game_move}, rung #{b.rung}]
+          feeling: #{feeling(b.feeling)}
           inner: #{b.inner || "(none)"}
           move: #{inspect(b.move)}; relationship: #{inspect(b.relationship)}
         """
@@ -140,6 +141,7 @@ defmodule Play1.Report do
 
         """
         #{Cast.name(id)}: game "#{after_.game.name}", reached rung #{after_.rung} of #{length(after_.game.ladder)}, #{after_.beats_spoken} beats
+          leaves feeling: #{feeling(Map.get(after_, :mood))}
         #{relationships}
         """
       end)
@@ -178,6 +180,9 @@ defmodule Play1.Report do
   defp reactions(%{reactions: r}),
     do:
       " (" <> Enum.map_join(r, ", ", fn {id, mode} -> "#{Cast.short_name(id)} #{mode}" end) <> ")"
+
+  defp feeling(nil), do: "(none recorded)"
+  defp feeling(%{emotion: e, intensity: i} = f), do: "#{e} (#{i}/5)#{if f[:about], do: ", about " <> f[:about], else: ""}"
 
   defp arrivals(%{arrivals: []}), do: ""
 

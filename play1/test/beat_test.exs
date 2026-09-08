@@ -26,9 +26,10 @@ defmodule Play1.BeatTest do
     assert Beat.to_script(%{beat | kind: :aside}) =~ "(aside; drawing off her gloves)"
   end
 
-  test "the public form hides inner thought, game move and relationship" do
-    public = @attrs |> Beat.new!() |> Beat.public()
+  test "the public form hides inner thought, feeling, game move and relationship" do
+    public = @attrs |> Map.put(:feeling, %{emotion: "wistful", intensity: 4, about: "the ribbon"}) |> Beat.new!() |> Beat.public()
     assert public.inner == nil
+    assert public.feeling == nil
     assert public.relationship == nil
     assert public.game_move == :rest
     assert public.line == "I said I would come."
