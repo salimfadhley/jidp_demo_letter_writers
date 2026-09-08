@@ -28,7 +28,17 @@ defmodule Play1.PrivacyTest do
 
   test "every beat prompt asks for the feeling first" do
     state = Cast.initial_state(:clara_vane)
-    prompt = Prompts.beat(state, %{seq: 2, phase: :scene, place: "the parlour", group: [:clara_vane, :julian_strake], cue: "", spotlight: :julian_strake})
+
+    prompt =
+      Prompts.beat(state, %{
+        seq: 2,
+        phase: :scene,
+        place: "the parlour",
+        group: [:clara_vane, :julian_strake],
+        cue: "",
+        spotlight: :julian_strake
+      })
+
     assert prompt =~ "What did it make you feel?"
     assert prompt =~ "\"feeling\""
     assert Prompts.system(state) =~ "The one real thing in the room is what you feel"

@@ -205,6 +205,7 @@ defmodule Play1.Cast do
     beats_spoken: 0,
     last_game_move: nil,
     rung: 0,
+    mood: nil,
     observer: nil
   }
 

@@ -27,7 +27,12 @@ defmodule Play1.BeatTest do
   end
 
   test "the public form hides inner thought, feeling, game move and relationship" do
-    public = @attrs |> Map.put(:feeling, %{emotion: "wistful", intensity: 4, about: "the ribbon"}) |> Beat.new!() |> Beat.public()
+    public =
+      @attrs
+      |> Map.put(:feeling, %{emotion: "wistful", intensity: 4, about: "the ribbon"})
+      |> Beat.new!()
+      |> Beat.public()
+
     assert public.inner == nil
     assert public.feeling == nil
     assert public.relationship == nil

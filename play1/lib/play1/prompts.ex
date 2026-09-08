@@ -197,10 +197,15 @@ defmodule Play1.Prompts do
     """
   end
 
-  defp mood(%{mood: nil}), do: "Nothing in particular yet; the evening has not touched you."
+  defp mood(state) do
+    case Map.get(state, :mood) do
+      %{emotion: e, intensity: i} = m ->
+        "#{String.capitalize(e)}, #{i} of 5#{if m[:about], do: ", about " <> m[:about], else: ""}. It colours what you say next."
 
-  defp mood(%{mood: %{emotion: e, intensity: i} = m}),
-    do: "#{String.capitalize(e)}, #{i} of 5#{if m[:about], do: ", about " <> m[:about], else: ""}. It colours what you say next."
+      _ ->
+        "Nothing in particular yet; the evening has not touched you."
+    end
+  end
 
   # The beats heard since this character's own last beat, or the last few if they have not spoken.
   defp heard_since(state) do
@@ -215,8 +220,15 @@ defmodule Play1.Prompts do
       |> Enum.take(-6)
 
     case recent do
-      [] -> "(nothing since your own last words)"
-      beats -> Enum.map_join(beats, "\n", &"#{Cast.stage_name(&1.speaker)}: #{&1.line || "(" <> (&1.direction || "silence") <> ")"}")
+      [] ->
+        "(nothing since your own last words)"
+
+      beats ->
+        Enum.map_join(
+          beats,
+          "\n",
+          &"#{Cast.stage_name(&1.speaker)}: #{&1.line || "(" <> (&1.direction || "silence") <> ")"}"
+        )
     end
   end
 

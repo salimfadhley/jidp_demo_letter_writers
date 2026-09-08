@@ -92,7 +92,7 @@ defmodule Play1.Beat do
   @doc "The beat as everyone else in the room perceives it."
   @spec public(t() | map()) :: t()
   def public(%__MODULE__{} = beat),
-    do: %{beat | inner: nil, relationship: nil, game_move: :rest, rung: 0}
+    do: %{beat | inner: nil, feeling: nil, relationship: nil, game_move: :rest, rung: 0}
 
   def public(map) when is_map(map), do: map |> to_struct() |> public()
 

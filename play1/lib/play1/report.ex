@@ -182,7 +182,9 @@ defmodule Play1.Report do
       " (" <> Enum.map_join(r, ", ", fn {id, mode} -> "#{Cast.short_name(id)} #{mode}" end) <> ")"
 
   defp feeling(nil), do: "(none recorded)"
-  defp feeling(%{emotion: e, intensity: i} = f), do: "#{e} (#{i}/5)#{if f[:about], do: ", about " <> f[:about], else: ""}"
+
+  defp feeling(%{emotion: e, intensity: i} = f),
+    do: "#{e} (#{i}/5)#{if f[:about], do: ", about " <> f[:about], else: ""}"
 
   defp arrivals(%{arrivals: []}), do: ""
 

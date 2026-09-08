@@ -137,7 +137,11 @@ defmodule Play1.LLM.Stub do
       "direction" => "sips the cup",
       "addressed_to" => addressed && Atom.to_string(addressed),
       "game_move" => Enum.at(moves, rem(seq, 4)),
-      "feeling" => %{"emotion" => Enum.at(~w(wistful suspicious intrigued angry), rem(seq, 4)), "intensity" => rem(seq, 5) + 1, "about" => "beat #{seq - 1}"},
+      "feeling" => %{
+        "emotion" => Enum.at(~w(wistful suspicious intrigued angry), rem(seq, 4)),
+        "intensity" => rem(seq, 5) + 1,
+        "about" => "beat #{seq - 1}"
+      },
       "inner" => "#{Cast.short_name(from)} keeps a private thought at beat #{seq}.",
       "move" => if(:ambrose_ashworth in group, do: nil, else: move(from, seq, phase)),
       "relationship" =>
