@@ -156,6 +156,7 @@ defmodule Play1.LLM.Stub do
     }
   end
 
+  defp move(:barnabas_cruttwell, _seq, _phase), do: %{"to" => "withdraw"}
   defp move(_from, seq, :scene) when rem(seq, 11) == 0, do: %{"to" => "withdraw"}
   defp move(from, _seq, :last) when from != :lavinia_ashworth, do: %{"to" => "leave"}
   defp move(_from, _seq, _phase), do: nil

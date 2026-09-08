@@ -480,6 +480,11 @@ defmodule Play1.Stage do
 
   defp apply_move(stage, %Beat{move: nil}), do: stage
 
+  # The visitors' comings and goings are the stage's business, not theirs.
+  defp apply_move(stage, %Beat{speaker: speaker})
+       when speaker in [:ambrose_ashworth, :barnabas_cruttwell],
+       do: stage
+
   defp apply_move(stage, %Beat{move: move, speaker: speaker}) do
     {room, to} = Room.move(stage.room, speaker, move)
     stage = Map.put(stage, :room, room)

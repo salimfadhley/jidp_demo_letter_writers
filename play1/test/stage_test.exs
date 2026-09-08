@@ -29,6 +29,9 @@ defmodule Play1.StageTest do
              Enum.filter(beats, &(&1.kind == :monologue))
 
     assert Enum.count(plans, & &1.disruption) == 1
+    # The keeper leaves once, with Ambrose, however his beats are worded.
+    assert Enum.count(result.entries, &match?({:note, "Exit CRUTTWELL" <> _}, &1)) == 0
+    assert Enum.count(result.entries, &match?({:note, "Exeunt CRUTTWELL" <> _}, &1)) == 1
     keeper_beats = Enum.filter(beats, &(&1.speaker == :barnabas_cruttwell))
     assert length(keeper_beats) == 2
     assert Enum.all?(keeper_beats, &(&1.place == "the drawing-room"))
